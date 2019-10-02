@@ -17,7 +17,13 @@ Object | Description
 `scripts` | Scripts used to maintain this project - i.e. sources extraction from `.zip` files and `Readme.md` generator
 `src` |  Artifact bundle sources; one sub-directory per artifact bundle with a Readme.md description file.
 
-## Object naming scheme
+## Object naming conventions
+
+Artifact bundle files have the following naming convention:
+
+```text
+<DescriptionString>-<ObjectAcronym>-<version>-[<CompanyAcronym>]-<paradigm>.zip
+```
 
 The following naming scheme is used for Build Plans and Plan Scripts:
 
@@ -30,14 +36,17 @@ where
 ```text
 <DescriptionString> : Short string describing the content of the object.
 <ObjectType>        : possible values: Capture, Deploy, General
-<ObjectAcronym>     : Possible values: BP (Build Plan) or PS (Plan Script)
+<ObjectAcronym>     : Possible values: AB (Artifact Bundle), BP (Build Plan) or PS (Plan Script)
+<version>           : Artifact bundle version (ex: v0.2)
 [<CompanyAcronym>]  : Optional contributor's company acronym
-<Paradigm>          : Possible values: Legacy, UEFI
+<Paradigm>          : Possible values: Legacy, UEFI and LegacyUefi (object can be used in both paradigms)
 ```
 
 Examples:
 
 ```text
-LinuxMinimum-DeployBP-HPE-UEFI
 MountUefiPartition-GeneralPS-HPE-UEFI
+LinuxMinimum-AB-HPE-UEFI.zip
+LinuxMinimum-DeployBP-HPE-UEFI
+Unmount-GeneralPS-HPE-LegacyUefi
 ```
