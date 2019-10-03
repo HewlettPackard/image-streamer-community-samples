@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Version 0.71
+# Version 0.72
 
-# This script generates the <ArtifactName>-README.md file 
+# This script generates the src/<ArtifactName>/README.md file 
 # associated with each artifact bundle found in the 
 # artifact-bundles directory. It overwrites any already existing 
 # file. It must be ran after the ExtractArtifactSources.bash script.
