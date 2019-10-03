@@ -1,0 +1,26 @@
+Build Plan properties summary
+
+
+Name: LinuxMinimumDeployment-DeployBP-HPE-UEFI
+Type: deploy
+ID  : 57a2c5ec-0be2-4b5c-adf7-ae1feb29f743
+Description: Deploy a Golden Image deployment with no customization. The only thing done in the Finalize step is the cleanup of the RC-FILE after the first reboot of the deployed server.
+
+Steps:
+ 1- MountUefiPartition-GeneralPS-HPE-UEFI
+ 2- PrepareForDeployment-DeployPS-HPE-UEFI
+ 3- FinalizeDeployment-DeployPS-HPE-UEFI
+ 4- Unmount-GeneralPS-HPE-LegacyUefi
+
+Custom Attributes:
+
+  {
+    "name": "OS_Type",
+    "description": "",
+    "value": "centos",
+    "constraints": "{}",
+    "type": "string"
+  }
+
+
+

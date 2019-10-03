@@ -1,0 +1,67 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Clean up the RC-FILE to avoid errors upon each reboot of the deployed server.
+
+############
+#################################################
+# FinalizeDeployment-DeployPS-HPE-UEFI
+# Version: 0.3
+#################################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The following 4 echo commands are executed by the guestfish shell.
+# Their output goes in the OS-Volume Activity log file.
+echo
+echo "======================================="
+echo "PrepareForDeployment-DeployPS-HPE-UEFI"
+echo "======================================="
+echo " Program the restore of the original RC file as last line of the ImageStreamer modified RC file"
+
+
+upload -<<END /EFI/HPE/isdeploy/scripts/ZZZ-FinalizeDeployment.bash
+#!/bin/bash
+# This script was loaded by HPE Image Streamer
+#
+# It cleans the RC-FILE when no errors encountered
+# during the first reboot
+
+#
+# Redirect logs into the caller's log file
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
+# Determine RC-FILE
+OS_Type=$(cat /boot/efi/EFI/HPE/isdeploy/data/OS-Type)
+
+case $OS_Type in
+ rhel|centos|xen*)
+ RC_FILE="/etc/rc.d/rc.local"
+ ;;
+ ubuntu)
+ RC_FILE="/etc/rc.local"
+ ;;
+ sle*)
+ RC_FILE="/etc/rc.d/after.local"
+ ;;
+ *)
+ echo "OS Type: $OS_Type not supported"
+ echo "exiting..."
+ exit 1
+ ;;
+esac
+
+
+# Remove the wrapper launch from the RC_FILE
+sed -i -e '/^.*sh .boot.*Streamer.bash/d' $RC_FILE || exit 2
+
+exit 0
+END

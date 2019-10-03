@@ -1,0 +1,62 @@
+# Plan Script Type: general
+
+# Plan Script Description:
+# Mount the UEFI vfat partition of the OS-Volume. Suitable for both Capture and 
+# Deploy OS Build Plans. Must be the first step of OS Build Plans.
+
+############
+# ##########################################
+# MountUefiPartition-GeneralPS-HPE-UEFI
+# Version: 0.3
+# ##########################################
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+
+# NOTE: The output of guestfish commands goes to the OS-Volume
+# Activity log file ONLY if the first mount command is successful.
+# If the first mount command fails, you must check the
+# Image Streamer Activity log file to understand why
+# the first mount command failed.
+
+
+
+# The output of the following guestfish echo commands goes 
+# into the OS-Volume Activity log file.
+echo "======================================="
+echo "MountUefiPartition-GeneralPS-HPE-UEFI"
+echo "======================================="
+echo "Version of the libguestfs running in the Image Streamer:"
+version
+echo
+ 
+# The following guestfish command lists the file systems
+# present in the OS-Volume. It is there mostly for
+# debug purposes.
+echo
+echo "List of file systems present in the OS-Volume:"
+list-filesystems
+echo
+
+# Redirect the output of the list-filesystems 
+# guestfish command into the Image Streamer cat command
+# which create a list-fs file with the list of file systems.
+list-filesystems | cat > ./list-fs
+
+# Print the mount command for debug purposes. This command 
+# is executed bu the Image Streamer.
+echo "Mount Command:"
+!awk -F: '/vfat/ {print "mount", $1, "/"}' ./list-fs
+
+# Perform the mount command.
+# The "<" sign tells guestfish to execute the mount command created by IS.
+<!awk -F: '/vfat/ {print "mount", $1, "/"}' ./list-fs
