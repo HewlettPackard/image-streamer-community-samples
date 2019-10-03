@@ -1,0 +1,124 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Enables or Disables security services. Successfully tested on RHEL 7.5, CentOS 
+# 7.5. ToDo: Support of SLE 15. Investigate adaption to XenServer and Ubuntu
+
+############
+# #################################################
+# LinuxManageSecurityServices-DeployPS-HPE-Legacy
+# Version: 0.5
+# #################################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The following echo commands is executed by the guestfish shell
+# Its output will be written to the OS Volume Activity log file.
+echo
+echo "======================================="
+echo "LinuxManageSecurityServices-DeployPS-HPE-Legacy"
+echo "======================================="
+
+# Copy-out the OS-Volume /etc/selinux/config into the Image Streamer. Don't exit
+# if this file does not exists (the default on Ubuntu)
+-download /etc/selinux/config ./selinux_config
+
+# The following echo command is executed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tCreate the script that will configure SELINUX during next reboot"
+# This script is created in the OS-Volume
+upload -<<END /temp/ImageStreamer/Enable_Selinux
+#! /bin/bash
+sed -i '/SELINUX=.*/c\SELINUX=@SELinux:disabled@' ./selinux_config
+sed -i '/SELINUXTYPE=.*/c\SELINUXTYPE=@SELinuxType:targeted@' ./selinux_config
+echo -e "\tExiting selinux_config"
+exit 0
+END
+
+# Copy-out to the Image Streamer the above script.
+download /temp/ImageStreamer/Enable_Selinux ./Enable_Selinux
+# Ask the Image Streamer to execute the above script that modifies 
+# the SELINUX configuration file.
+!source ./Enable_Selinux
+# Copy-in the new SELINUX config file into the OS-Volume.
+# ToDo: Don't copy it if it was not existing (i.e. Ubuntu)
+-upload ./selinux_config /etc/selinux/config
+
+# The following echo command will be performed by the Image Streamer. 
+# Its output will be written in the OS Volume Activity/log file.
+echo "\tPopulate the RC file to disable and stop firewalld service during next boot"
+
+# ToDo: Add some flexibility to the firewalld service: Enable and start...
+# ToDo: Adapt for Ubuntu and its ufw (ufw disable)
+
+# The following 3 echo commands will be performed by the Image Streamer.
+# Their output will be appended to the RC file of the image Streamer.
+!echo 'echo "Disable and stop firewalld"' >>./RC-FILE
+!echo "systemctl disable firewalld.service" >> ./RC-FILE
+!echo "service firewalld stop" >> ./RC-FILE
+
+# The following echo command is performed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tPopulate the RC file to enable and start or disable and stop the sshd.service during next reboot"
+
+# Create a bash script in the OS-Volume to manage the ssh service
+# ToDo: adapt if ssh server has not been installed.
+upload -<<END /temp/ImageStreamer/ssh_service
+#! /bin/bash
+echo -e "\tEntering ssh_service"
+ssh=@SSH:Enabled@
+if [ $ssh == Enabled ]
+then
+echo 'echo "Enable and restart sshd"' >> ./RC-FILE
+echo "systemctl enable sshd.service" >> ./RC-FILE
+echo "service sshd restart" >> ./RC-FILE
+else
+echo 'echo "Disable and stop sshd"' >> ./RC-FILE
+echo "systemctl disable sshd.service" >> ./RC-FILE
+echo "systemctl stop sshd" >> ./RC-FILE
+fi
+exit 0
+END
+
+# Copy-out toward the Image Streamer the above script.
+download /temp/ImageStreamer/ssh_service ./ssh_service
+
+# Ask the Image Streamer shell to execute the above script
+# that will append systemctl commands to the RC file 
+# already present in the Image Streamer.
+!source ./ssh_service
+
+#
+# Change the name of the ISCSI initiator to reflect the name assigned by Oneview.
+# The next version of Oneview will have an attribute to do the same offline
+#
+
+# Create a bash script in the OS-Volume
+upload -<<END /temp/set_iscsi_initiator
+#! /bin/bash
+echo "Entering ${0}..."
+iname=$(cat /sys/firmware/ibft/initiator/initiator-name)
+echo InitiatorName=$iname > /etc/iscsi/initiatorname.iscsi
+echo "Exting ${0}..."
+unlink $0
+END
+
+# The following echo command is performed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tPopulate the RC-FILE to fix iSCSI initiator issue during next boot."
+
+# The following 4 echo commands are performed by the Image Streamer shell.
+# Their output is appended to the RC file already present in the Image Streamer.
+!echo 'echo "Fix iSCSI initiator"' >> ./RC-FILE
+!echo "/bin/bash /temp/set_iscsi_initiator" >> ./RC-FILE
+!echo "service iscsid restart" >> ./RC-FILE
+!echo "sleep 2" >> ./RC-FILE
+# ToDo: Use systemctl to manage the iscsid service. Check whether the service is really active!

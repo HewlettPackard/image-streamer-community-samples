@@ -1,0 +1,36 @@
+Build Plan properties summary
+
+
+Name: XenServerBasicDeployment-DeployBP-HPE-Legacy
+Type: deploy
+ID  : 52853a69-fab6-4015-8905-b02739c748c5
+Description: Basic deployment of XenServer. Tested with 7.6. Not suitable for real Linux distros.
+
+Steps:
+ 1- MountAndValidate-GeneralPS-HPE-Legacy
+ 2- PrepareForDeployment-DeployPS-HPE-Legacy
+ 3- XenConfigureManagementNetworkNoBond-DeployPS-HPE-Legacy
+ 4- XenConfigureHostname-DeployPS-HPE-Legacy
+ 5- XenRestoreDisksAndStorageRepos-DeployPS-HPE-Legacy
+ 6- FinalizeDeployment-DeployPS-HPE-Legacy
+ 7- Unmount-GeneralPS-HPE-LegacyUefi
+
+Custom Attributes:
+
+  {
+    "name": "ManagementNIC1",
+    "description": "",
+    "value": null,
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\"}",
+    "type": "nic"
+  },
+  {
+    "name": "HostName",
+    "description": "",
+    "value": "xenfdz",
+    "constraints": "{\"regex\":\"\",\"helpText\":\"\"}",
+    "type": "string"
+  }
+
+
+

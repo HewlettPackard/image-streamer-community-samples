@@ -1,0 +1,110 @@
+# Plan Script Type: capture
+
+# Plan Script Description:
+# Remove network settings depending on the OS-Type before golden image capture. 
+# Tested with RHEL 7.5, CentOS 7.5, SLE 15, XenServer 7.1, 7.6. Although Ubuntu 
+# 19.04 does not generate fatal errors, it is not well integrated.
+
+############
+# ############################################
+# GeneralizeNetworkBeforeCapture-CapturePS-HPE-Legacy
+# Version: 0.6
+#############################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+#The output of the following guestfish echo commands goes
+# into the Golden Image Activity log file.
+echo
+echo "======================================="
+echo "GeneralizeNetworkBeforeCapture-CapturePS-HPE-Legacy"
+echo "======================================="
+
+# Create a temporary directory in the Image Streamer
+!mkdir new_network
+
+
+# The output of the following guestfish command goes
+# in the Golden Image Activity log file.
+echo " Copy out the network directory"
+
+# Depending on the OS-Type, push-out the entire network directory
+# to the just created new_network directory in the Image Streamer.
+<!awk '/sles/ {print "copy-out /etc/sysconfig/network/ new_network/"} ; /rhel/ || /centos/ || /xen/ {print "copy-out /etc/sysconfig/network-scripts new_network/"}' ./OS-Type
+
+# Create a bash script in the Golden Image that will be 
+# pushed-out to the Image Streamer before execution.
+upload -<<END /temp/ImageStreamer/gen_network_conf 
+#!/bin/bash
+
+OS_Type=$(cat OS-Type)
+case $OS_Type in
+ rhel|centos|xen*)
+ NET_DIR="network-scripts"
+ ;;
+ sles)
+ NET_DIR="network"
+ ;;
+ ubuntu)
+ # TBD
+ ;;
+ *)
+ echo "OS Type $OS_Type not supported. Exiting. " 
+ exit 1 
+ ;;
+esac
+ 
+net_cfg_files=`ls new_network/$NET_DIR/ | grep "ifcfg-"`
+
+for net_cfg_file in $net_cfg_files
+do
+	if [ $net_cfg_file != "ifcfg-lo" ]
+	then
+		rm -rf new_network/$NET_DIR/$net_cfg_file 
+		echo -e "\tNetwork interface cfg file $net_cfg_file successfully removed!!!" 
+	fi
+done
+exit 0
+END
+
+# Push-out the above script before execution in the Image Streamer
+download /temp/ImageStreamer/gen_network_conf ./gen_network_conf
+!source ./gen_network_conf
+
+# The output of the following guestfish echo command goes
+# in the Golden Image Activity log file.
+echo " Removal of the Golden Image network directory"
+
+# Remove the Golden Image network directory 
+# depending on the OS-Type.
+#ToDo: adapt to Ubuntu and its /etc/netplan/* files
+<!awk '/sles/ {print "rm-rf /etc/sysconfig/network"} ; /rhel/ || /centos/ || /xen/ {print "rm-rf /etc/sysconfig/network-scripts"}' ./OS-Type
+
+# Pull-in the cleaned network directory into the Golden Image
+# at the right location depending on the OS-Type.
+echo " Pull-in the cleaned network directory into the Golden Image" 
+<!awk '/sles/ {print "copy-in new_network/network/ /etc/sysconfig/ "} ; /rhel/ || /centos/ || /xen/ {print "copy-in new_network/network-scripts/ /etc/sysconfig"}' ./OS-Type
+
+
+# Various clean up in the Golden Image.
+# The output of the guestfish echo commands goes
+# in the Golden Image Activity log file.
+echo " Remove /etc/init.d/ibftT if exists"
+-rm-rf /etc/init.d/ibftT
+
+echo " Remove SSH host keys"
+-glob rm-rf /etc/ssh/ssh_host_*
+
+# ToDo: need to adapt with Ubuntu; this file is only present during run time
+# as a link to /run/systemd/resolve/resolv.conf
+echo " Clear the resolv.conf file"
+-upload -<<END /etc/resolv.conf
+END

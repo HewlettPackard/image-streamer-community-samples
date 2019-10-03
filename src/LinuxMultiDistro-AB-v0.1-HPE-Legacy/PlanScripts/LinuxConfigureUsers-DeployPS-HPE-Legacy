@@ -1,0 +1,174 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Set root password and create user accounts during the deployment process. 
+# Tested successfully with RHEL 7, CentOS 7 and SLE 15 and Ubuntu 19.04. ToDo: 
+# add support of XenServer
+
+############
+# ############################################
+# LinuxConfigureUsers-DeployPS-HPE-Legacy
+# Version: 0.5
+#############################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The output of the following 4 guestfish echo commands goes
+# in the OS-Volume Activity log file.
+echo
+echo "======================================="
+echo "LinuxConfigureUsers-DeployPS-HPE-Legacy"
+echo "======================================="
+echo "\tPrepare sript to change root's password during next reboot"
+
+# The following bash script is written in the OS-Volume
+# /temp/change_root_passwd file. It will be executed by 
+# RC-FILE during next reboot.
+# Debug: Look for string .local in /var/log/messages 
+upload -<<END /temp/change_root_passwd
+#! /bin/bash
+# The following echo commands write the name of this script
+# in the OS log file. Typically /var/log/messages.
+echo "Entering ${0}..."
+
+# Retrieve OS-Type and set OS-Type dependent variables.
+OS_Type=$(cat /temp/OS-Type)
+
+case $OS_Type in
+ rhel|centos|sles|ubuntu)
+ # ToDo: it may be possible to use chpasswd as in SLES...
+ echo "root:@NewRootPassword@" | chpasswd 2>/dev/null
+ ;;
+ *)
+ echo "OS Type not supported. Exiting. "
+ exit 1
+ ;;
+esac
+echo "Exiting ${0}..."
+unlink $0
+
+
+END
+
+# The output of the following echo commands goes
+# in the OS-Volume Activity log file.
+echo "\tPrepare /temp/add_users script to add new user(s)"
+echo "\tand set their password."
+
+# The following script will be executed by the RC file
+# during the next reboot (see below).
+# Debug: Look for string .local in /var/log/messages
+upload -<<END /temp/add_users
+#!/bin/bash
+
+# The following echo commands prints the name of
+# this script in the OS log file. Typically /var/log/messages.
+echo "Entering ${0}..."
+
+# Retrieve OS-Type and set OS-Type dependent variables.
+OS_Type=$(cat /temp/OS-Type)
+
+echo "Add comment in /etc/{group,passwd}"
+# Add comments in passwd and group files to delimit the start of Image Streamer modifications
+# ToDo: Would be nicer to add this comment only if at least one user has been added!
+case $OS_Type in
+	rhel|centos|ubuntu)
+		sed -i -e '$a\#START of Image Streamer modifications' /etc/group
+		sed -i -e '$a\#START of Image Streamer modifications' /etc/passwd
+		;;
+	sles)
+		# It seems that SLES, by default, does not create one group per new user
+		 sed -i -e '$a\#START of Image Streamer modifications' /etc/passwd
+		;;
+	xen*)
+		echo "ToDo: need to adapt with Xen or not? Exiting..."
+		exit 0
+		;;
+	*)
+		echo "OS Type: $OS_Type not supported. Exiting"
+		exit 1
+		;;
+esac
+
+# The following variable contains the list of the 
+# new users to create, separated by a comma (,) or a semi-colon (;).
+users_string="@NewUsers@"
+
+#Users will be added with the same password. On first login users will have to change their password.
+password="@NewUsersPassword@"
+
+IFS=',; ' read -r -a array <<< "$users_string"
+for user in "${array[@]}"
+do
+	echo "Processing $user"
+	if [ $(id -u) -eq 0 ]; then
+			egrep "$user" /etc/passwd >/dev/null
+			if [ $? -eq 0 ]; then
+					echo "Warning: $user exists!"
+			else
+
+				case $OS_Type in 
+				rhel|centos|ubuntu|sles)
+	 				useradd -m $user
+	 				echo "$user:$password" | chpasswd 2>/dev/null
+	 				chage -d 0 $user
+	 				[ $? -eq 0 ] && echo "User $user has been added to system!" || echo "Failed to add a user!"
+ 					;;
+ 				*)
+ 					echo "OS Type: $OS_Type not supported. Exiting."
+ 					exit 1
+	 				;;
+ 				esac
+			fi
+	else
+			echo "Error: Unable to add $user"
+ exit 2
+	fi
+done
+
+# Add comments in passwd file to delimit the end of Image Streamer modifications:
+# ToDo: Would be nicer to add this comment only if at least one user has been added!
+case $OS_Type in
+	rhel|centos|ubuntu)
+		sed -i -e '$a\#END of Image Streamer modifications' /etc/group
+		sed -i -e '$a\#END of Image Streamer modifications' /etc/passwd
+		;;
+	sles)
+		 sed -i -e '$a\#END of Image Streamer modifications' /etc/passwd
+		;;
+	xen*)
+		echo "ToDo: need to adapt with Xen or not? Exiting..."
+		exit 0
+		;;
+	*)
+		echo "OS Type: $OS_Type not supported. Exiting"
+		exit 1
+		;;
+esac
+
+
+# The outuput of the following shell command goes
+# in the OS log file. Typically /var/log/messages.
+echo "Exiting ${0}..."
+
+# Delete this script from the OS-Volume temporary directory.
+#unlink $0
+
+END
+
+# The output of the following echo command goes in 
+# the OS-Volume Activity log file.
+echo "\tAdd change_root_passwd and add_users scripts to RC file to run at boot time."
+
+# The following Image Streamer commands append lines
+# in the RC file already present in the Image Streamer.
+!echo "/bin/bash /temp/change_root_passwd" >> ./RC-FILE
+!echo "/bin/bash /temp/add_users" >> ./RC-FILE

@@ -1,0 +1,103 @@
+# Plan Script Type: capture
+
+# Plan Script Description:
+# Remove user accounts created during a previous deployment and before a new 
+# Capture. Tested on RHEL 7.5, CentOS 7.5, SLE 15 and XenServer 7.6.
+
+############
+# ##########################################
+# GeneralizeUsersBeforeCapture-CapturePS-HPE-Legacy
+# Version: 0.6
+###########################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+#This script removes the users created by a previous deployment
+
+# The output of the following echo commands goes
+# in the Golden Image Activity log file.
+echo
+echo "======================================="
+echo "GeneralizeUsersBeforeCapture-CapturePS-HPE-Legacy"
+echo "======================================="
+echo " Copy out user passwd and group files"
+
+# The following 5 commands copy files and dirs from
+# the Golden Image out to the Image Streamer 
+# for further processing.
+download /etc/passwd ./passwd
+download /etc/group ./group
+download /etc/shadow ./shadow
+copy-out /home .
+copy-out /var/mail/ .
+
+# Now that we have a copy of /home and /var/mail
+# in the Image Streamer, we can remove them
+# from the Golden Image. We will'll upload them
+# back when cleaned-up.
+rm-rf /home
+rm-rf /var/mail
+
+
+# The following command writes a bash shell script into the Golden
+# Image, in the /temp directory.
+upload -<<END /temp/cleanup-homedirs-and-maildirs
+#!/bin/bash
+
+# Retrieve the list of users to cleanup:
+users=$(awk -F ':' '/^#START/ {i=1; next;}; i && i++ <= i && ! /^#END/ {print $1}' ./passwd)
+
+# The output of the the following command goes into
+# the Golden Image Activity log file.
+echo " Removing /home dirs and /var/mail files of the users to be cleaned-up" 
+for user in $users; do
+ rm -rf /home/$user > /dev/null 2>&1
+ rm -rf /var/mail/$user > /dev/null 2>&1
+done
+
+exit 0
+END
+
+# The above shell script is copied-out to the Image Streamer before execution.
+download /temp/cleanup-homedirs-and-maildirs ./cleanup-homedirs-and-maildirs
+!source ./cleanup-homedirs-and-maildirs
+
+# The following command writes a bash shell script into
+# the temporary directory in the Golden Image, for further execution.
+upload -<<END /temp/ImageStreamer/generalize_users
+#! /bin/bash
+
+# Retrieve the list of users to generalize:
+users=$(awk -F ':' '/^#START/ {i=1; next;}; i && i++ <= i && ! /^#END/ {print $1}' ./passwd)
+
+for user in $users
+do
+echo "Removing $user from shadow file"	
+sed -i "/$user/d" ./shadow
+done
+echo -e "\tRemoving users added by ImageStreamer in passwd and group files"
+sed -i '/^#START/,/^#END/{/^#START/d;d;}' ./passwd
+sed -i '/^#START/,/^#END/{/^#START/d;d;}' ./group
+
+exit 0
+END
+
+# Copy out the above script from the Golden Image to the Image Streamer 
+# before execution by the Image Streamer shell.
+download /temp/ImageStreamer/generalize_users ./generalize_users
+!source ./generalize_users
+
+# Copy-in password, group files, /var/mails and /home directories
+upload ./passwd /etc/passwd
+upload ./group /etc/group
+upload ./shadow /etc/shadow
+copy-in ./home /
+copy-in ./mail /var/
