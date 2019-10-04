@@ -49,7 +49,7 @@ grub2-mkconfig -o /boot/efi/EFI/centos/grub.conf
 * If you intend to use the [UEFI paradigm](docs/ImageStreamer-LegacyAndUefiParadigms.pdf), append the following line to `/etc/rc.d/rc.local` and add to it the execute protection in order to start the compatibility `rc-local` service at boot time.
 
 ```bash
-echo "/bin/bash /boot/efi/EFI/HPE/isdeploy/HPE/HPE-ImageStreamer.bash" >> /etc/rc.d/rc.local
+echo "/bin/bash /boot/efi/EFI/HPE/isdeploy/HPE-ImageStreamer.bash" >> /etc/rc.d/rc.local
 chmod a+x /etc/rc.d/rc.local
 ```
 
@@ -59,16 +59,20 @@ chmod a+x /etc/rc.d/rc.local
 
 ## Golden Image creation
 
-* From the OneView profile used for the initial CentOS 7 installation, in the `OS Deployment` section, identify the OS volume that was created to hold this CentOS 7. This is the OS volume to use to capture the golden image.
+* From the OneView server profile used for the initial CentOS 7 installation, in the `OS Deployment` section, identify the OS volume that was created to hold this CentOS 7. This is the OS volume to use to capture the golden image.
 
 * If the Image Streamer GUI is not already active, click on this OS-Volume to start it.
 
 * In the Image Streamer GUI, select the `Golden images` page and then `Create golden image`
 
-* Fill-up the `Name`, OS volume and optionally supply a description. A good practise is to append a suffixe `-UEFI`or `Legacy` to mention which paradigm will be used by this Golden Image
+* Fill-up the `Name`, OS volume and optionally supply a description. A good practice is to append a suffix `-UEFI`or `Legacy` to mention which paradigm will be used by this Golden Image
 
 * Select the appropriate `LinuxCapture-CaptureBP-HPE-[UEFI|Legacy]` Build Plan contained in the corresponding `LinuxMultiDistro-AB*` artifact bundle
 
 * Click on the `Create` icon
 
 * In case of problem, select `Activity` section from the pull down menu next to the Golden Image name and download the capture logs.
+
+## Deployment tips
+
+TBD
