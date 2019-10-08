@@ -1,0 +1,162 @@
+# Plan Script Type: capture
+
+# Plan Script Description:
+# Create/populate an ImageStreamerCapture file certifying that the Golden Image 
+# has been created properly. Performs various cleanups: network file, hostname, 
+# fstab, /etc/hosts Tested with with RHEL7.5, CentOS 7.5, SLE 15 and XenServer 
+# 7.1, 7.6 and Ubuntu 19.04.
+
+############
+# ##########################################
+# GeneralizeHostBeforeCapture-CapturePS-HPE-Legacy
+# Version: 0.8
+###########################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+
+# The output of the following echo commands goes
+# in the Golden-Image Activity log file.
+echo
+echo "======================================="
+echo "GeneralizeHostBeforeCapture-CapturePS-HPE-Legacy"
+echo "======================================="
+
+# The following bash script will be executed by the Image Streamer shell,
+# but it is first created in the Golden-Image.
+# It creates an ImageStreamerCapture file containing some 
+# text saying that the Golden Image has been created by the 
+# Image Streamer.
+upload -<<END /temp/ImageStreamer/capture_details
+#!/bin/bash
+
+# The output of the following echo command goes
+# in the Golden Image Activity log file. 
+echo " Create and populate the /ImageStreamerCapture file"
+
+# Retrieve the OS-Type in a bash variable
+OS_Type="$(cat OS-Type)"
+
+# Print OS_Type in the Image Streamer Activity log file for debug purposes
+echo " OS_Type: $OS_Type" 
+
+# The output of the following echo commands goes 
+# into the Image Streamer ./ImageStreamerCapture file.
+echo " HPE Image Streamer Capture for $OS_Type " > ./ImageStreamerCapture
+echo " Complete generalization by host state removal" >> ./ImageStreamerCapture
+echo -n " " >> ./ImageStreamerCapture
+date >> ./ImageStreamerCapture
+exit 0
+END
+
+# The above script is pushed out to the Image Streamer
+download /temp/ImageStreamer/capture_details ./capture_details
+
+# Execution of the above script in the Image Streamer.
+# The result of this execution is the /temp/ImageStreamerCapture file.
+!source ./capture_details
+
+# Pull in the file from the Image Streamer to the Golden Image.
+upload ./ImageStreamerCapture /ImageStreamerCapture
+
+# The output of the following guestfish command goes
+# in the Golden Image Activity log file for debug purposes.
+cat /ImageStreamerCapture
+
+# Guestfish removal of the temporary capture_details script.
+rm-f /temp/ImageStreamer/capture_details
+
+# Generalize /etc/sysconfig/network with empty content
+# on RHEL type OS only.
+# If OS-Type=sles, /etc/sysconfig/network exists and is a directory.
+# Hence the following upload command will do nothing.
+# ToDo: Don't perform this action on SLES and Ubuntu to avoid
+# an error in the Golden Activity log file
+-upload -<<END /etc/sysconfig/network
+END
+
+#Generalize /etc/hostname
+-upload -<<END /etc/hostname
+localhost.localdomain.com
+END
+
+# The output of this echo guestfish commands goes
+# in the Golden Image Activity log file.
+echo " Generalize /etc/fstab file"
+
+# Push out the Golden Image /etc/fstab file to the Image Streamer
+# for further modifications.
+download /etc/fstab ./fstab
+
+# Creation of a bash script in the Golden Image 
+# temporary directory. This script will be pushed out
+# to the Image Streamer and executed there.
+# This script removes the line containing the string "#This" as well as the next line.
+# Such lines could have been added by a Plan Script adding/modifying
+# the partition schema
+# This needs to be investigated since the Plan Script could have added 
+# more than one line!
+upload -<<END /temp/ImageStreamer/generalize_fstab
+#!/bin/bash
+sed -ie "/#This/ { N; d; }" ./fstab
+exit 0
+END
+
+# Push out the above script to the Image Streamer
+download /temp/ImageStreamer/generalize_fstab ./generalize_fstab
+
+# Execution of the above script in the Image Streamer 
+!source ./generalize_fstab
+
+# Pull-in the modified fstab file into the Golden Image
+upload ./fstab /etc/fstab
+
+# Guresftish removal of the potentially existing
+# LVM-Data1 file.
+-rm-rf /root/LVM-Data1
+
+# Cleanup of 
+rm-f /temp/ImageStreamer/generalize_fstab
+
+# The output of the following echo guestfish command
+# goes in the Golden Image Activity log file.
+echo " Generalize /etc/hosts file"
+
+# Push-out of the Golden Image /etc/hosts file into the Image Streamer.
+download /etc/hosts ./hosts
+
+# Creation of a bash script that will be executed in the Image Streamer.
+# This script removes the line starting with string "START" and the next one.
+# Those 2 lines could have been added by a Network configuration
+# Plan script during a previous deployment process.
+upload -<<END /temp/ImageStreamer/generalize_hosts
+#!/bin/bash
+
+sed -ie '/^#START/ { N; d; }' ./hosts
+exit 0
+END
+
+# Push-out the above script to the Image Streamer for execution
+download /temp/ImageStreamer/generalize_hosts ./generalize_hosts
+
+# Execution of the the pushed out script in the Image Streamer
+!source ./generalize_hosts
+
+# Pull-in the resulting hosts file into the Golden Image.
+upload ./hosts /etc/hosts
+
+# Cleanup of the above script
+rm-f /temp/ImageStreamer/generalize_hosts
+
+echo " Generalize /etc/init.d directory"
+rm-f /etc/init.d/delete_def_route
+rm-f /etc/init.d/rm_del_def_route
+echo

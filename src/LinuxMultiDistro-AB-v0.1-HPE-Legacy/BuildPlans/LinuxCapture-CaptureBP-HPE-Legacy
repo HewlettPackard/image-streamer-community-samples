@@ -1,0 +1,21 @@
+Build Plan properties summary
+
+
+Name: LinuxCapture-CaptureBP-HPE-Legacy
+Type: capture
+ID  : 8a4745bf-1e3d-4026-9a06-e6cc26a93b47
+Description: Capture Golden Images. Tested with CentOS 7.6 and XenServer 7.6
+
+Steps:
+ 1- MountAndValidate-GeneralPS-HPE-Legacy
+ 2- GeneralizeHostBeforeCapture-CapturePS-HPE-Legacy
+ 3- GeneralizeNetworkBeforeCapture-CapturePS-HPE-Legacy
+ 4- GeneralizeUsersBeforeCapture-CapturePS-HPE-Legacy
+ 5- CleanupAfterCapture-CapturePS-HPE-Legacy
+ 6- Unmount-GeneralPS-HPE-LegacyUefi
+
+Custom Attributes:
+
+
+
+

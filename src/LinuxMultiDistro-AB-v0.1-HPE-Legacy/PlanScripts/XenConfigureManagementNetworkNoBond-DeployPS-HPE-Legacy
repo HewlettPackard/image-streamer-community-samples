@@ -1,0 +1,116 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# XenServer simple management network configuration. No bond.
+
+############
+# ##########################################
+# XenConfigureManagementNetworkNoBond-DeployPS-HPE-Legacy
+# Version: 0.3
+# ##########################################
+
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# NOTE: The output of guestfish commands goes to the OS-Volume
+# Activity log file ONLY if the first mount command is successful.
+# If the first mount command fails, you must check the
+# Image Streamer Activity log file to understand why
+# the first mount command failed.
+
+
+# The output of the following guestfish echo commands goes 
+# into the OS-Volume Activity log file.
+echo "================================================="
+echo "XenConfigureManagementNetworkNoBond-DeployPS-HPE-Legacy"
+echo "================================================="
+echo
+
+# The following echo command is performed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tPrepare the xenetwork configuration file to be executed at next reboot" 
+
+# The following upload command creates a bash script in the OS-Volume.
+# This script will be called at next reboot by the RC file
+# It configures the NICs given its arguments of the command line ($1, $2...).
+upload -<<END /temp/xenetwork
+#! /bin/bash
+echo -e "\tEntering /temp/xenetwork script ..."
+
+# Use of Xensever xe commands to configure network and network bonds for management network
+# NOTE: Xenserver does not allow the management interface to have a VLAN tag. 
+net_ip=$1
+net_gw=$2
+net_domain=$3
+dns1=$4
+dns2=$5
+netmask=$6
+net_mac_1=$7
+ 
+echo -e "\tWait for XenServer to be up before running xe commands"
+pif_uuid="" 
+while [ -z "$pif_uuid" ]
+do
+echo "xenetwork: Waiting 10 seconds for XenServer to be up and running"
+sleep 10
+pif_uuid=$(xe pif-list MAC=$net_mac_1 2>/dev/null | awk '/^uuid/ {print $NF}')
+done
+
+if [[ "$net_ip" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+	#pif_uuid=`xe pif-list MAC=$net_mac_1 | awk '/^uuid/ {print $NF}'`
+	echo -e "\tStatic network configuration" 
+ xe pif-reconfigure-ip uuid=$pif_uuid mode=static dns=$dns1,$dns2 ip=$net_ip gateway=$net_gw netmask=$netmask 
+	#xe pif-param-set uuid=$pif_uuid other-config:domain=$net_domain
+	#xe host-management-reconfigure pif-uuid=$pif_uuid
+else
+	#pif_uuid=`xe pif-list MAC=$net_mac_1 | awk '/^uuid/ {print $NF}'`
+	echo -e "\tDHCP network configuration"
+ xe pif-reconfigure-ip uuid=$pif_uuid mode=dhcp
+	#xe pif-param-set uuid=$pif_uuid other-config:domain=$net_domain
+	#xe host-management-reconfigure pif-uuid=$pif_uuid	
+fi
+
+echo -e "\tDomain configuration"
+xe pif-param-set uuid=$pif_uuid other-config:domain=$net_domain
+echo -e "\tHost Management reconfiguration"
+xe host-management-reconfigure pif-uuid=$pif_uuid
+
+echo -e "\tExiting /temp/xenetwork script ..."
+exit 0
+END
+
+echo "\tCreating the /temp/network-configuration script in the OS-Volume" 
+upload -<<END /temp/network-configuration
+! /bin/bash
+
+echo "Entering /temp/network-configuration script ..."
+
+if [[ "@ManagementNIC1.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+	echo "/bin/bash /temp/xenetwork @ManagementNIC1.ipaddress@ @ManagementNIC1.gateway@ @ManagementNIC1.domain@ @ManagementNIC1.dns1@ @ManagementNIC1.dns2@ @ManagementNIC1.netmask@ @ManagementNIC1.mac@ " >> ./RC-FILE
+else
+	echo "/bin/bash /temp/xenetwork 0 0 0 0 0 0 @ManagementNIC1.mac@ " >> ./RC-FILE
+fi
+	
+#echo "rm -f /temp/xenetwork" >> ./RC-FILE
+echo "Exiting /temp/network-configuration script ..."
+exit 0
+END
+
+echo "\tTransferring the /temp/network-configuration script in the ImageStreamer" 
+download /temp/network-configuration ./network-configuration
+
+# The following !source command executes the just transferred bash script that will populate
+# the ./RC-FILE with the relevant invocation of the network configuration script. 
+echo "\t Execution of the ./network-configuration script" 
+!source ./network-configuration
+
+echo

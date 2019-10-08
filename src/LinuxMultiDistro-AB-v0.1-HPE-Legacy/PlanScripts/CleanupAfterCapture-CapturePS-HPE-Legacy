@@ -1,0 +1,50 @@
+# Plan Script Type: capture
+
+# Plan Script Description:
+# Cleans up temporary directories and files created during the Capture Golden 
+# Image process.
+
+############
+#################################################
+# CleanupAfterCapture-CapturePS-HPE-Legacy
+# Version: 0.5
+#################################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The following 4 echo commands are executed by the guestfish shell.
+# Their output goes in the Golden Image Activity log file.
+echo
+echo "======================================="
+echo "CleanupAfterCapture-CapturePS-HPE-Legacy"
+echo "======================================="
+
+# The following echo command is executed by the guestfish shell
+# Its output goes in the OS-Volume Activity log.
+
+# The following echo commands is executed by the guestfish shell
+# Its output goes into the Golden Image Activity log.
+echo "Copy in the saved backup of original RC file into the Golden Image"
+
+<!awk '/rhel/ || /centos/ || /xen/ {print "upload ./RC-FILE.backup /etc/rc.d/rc.local.backup"} ; /sles/ {print "upload ./RC-FILE.backup /etc/init.d/after.local.backup" }' ./OS-Type
+
+
+# The following 5 commands are executed by the guestfish shell.
+# Their output goes in the Golden Image Activity log file.
+echo "#### For debug purposes, this is the content of the rc.local file in the Golden Image"
+echo "cat RC file"
+!cat ./RC-FILE
+echo
+
+echo "Removal of the temporary directory created in the Golden Image"
+# Uncomment the following line if you want guestfish to remove the entire
+# temporary directory created in the Golden Image.
+# rm-rf /temp/ImageStreamer

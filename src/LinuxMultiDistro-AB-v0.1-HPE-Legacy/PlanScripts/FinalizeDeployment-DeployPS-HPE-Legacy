@@ -1,0 +1,60 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Mainly finalize the preparation of the RC-FILE to be executed during the next 
+# reboot of the OS-Volume.
+
+############
+#################################################
+# FinalizeDeployment-DeployPS-HPE-Legacy
+# Version: 0.5
+#################################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The following 4 echo commands are executed by the guestfish shell.
+# Their output goes in the OS-Volume Activity log file.
+echo
+echo "======================================="
+echo "FinalizeDeployment-DeployPS-HPE-Legacy"
+echo "======================================="
+echo " Program the restore of the original RC file as last line of the ImageStreamer modified RC file"
+
+# The following echo command is executed by the Image Streamer shell.
+# Its output is appended to the RC file already present in the Image Streamer.
+# Its goal is to tell RC-FILE to restore its backup file when executed during the
+# first reboot of the OS-Volume.
+<!awk '/rhel/ || /centos/ || /xen/ {print "!echo mv -f /etc/rc.d/rc.local.backup /etc/rc.d/rc.local >>./RC-FILE"} ; /sles/ {print "!echo mv -f /etc/init.d/after.local.backup /etc/init.d/after.local >> ./RC-FILE"} ; /ubuntu/ {print "!echo mv -f /etc/rc.local.backup /etc/rc.local >> ./RC-FILE"}' ./OS-Type
+
+
+# The following echo command is executed by the guestfish shell
+# Its output goes in the OS-Volume Activity log.
+echo " Copy-in the modified RC file"
+# The following command copies the modified rc.local file from 
+# the Image Streamer into the OS-Volume.
+<!awk '/rhel/ || /centos/ || /xen/ {print "upload ./RC-FILE /etc/rc.d/rc.local"} ; /sles/ {print "upload ./RC-FILE /etc/init.d/after.local" } ; /ubuntu/ {print "upload ./RC-FILE /etc/rc.local"}' ./OS-Type
+
+echo " Add the execute protection to the modified RC file"
+<!awk '/rhel/ || /centos/ || /xen/ {print "chmod 0755 /etc/rc.d/rc.local"} ; /sles/ {print "chmod 0755 /etc/init.d/after.local" } ; /ubuntu/ {print "chmod 0755 /etc/rc.local"} ' ./OS-Type
+
+# The following commands are executed by the guestfish shell.
+# Their output goes in the OS-Volume Activity log file.
+echo "#### This is the content of the RC-FILE file that will be executed during next reboot:"
+<!awk '/rhel/ || /centos/ || /xen/ {print "cat /etc/rc.d/rc.local"} ; /sles/ {print "cat /etc/init.d/after.local" } ; /ubuntu/ {print "cat /etc/rc.local"}' ./OS-Type
+echo "#### End of the RC file that will be executed during the next reboot"
+echo
+
+# The following echo commands is executed by the guestfish shell
+# Its output goes into the OS-Volume Activity log.
+# The following command copies rc.local.backup file from the Image Streamer 
+# into the OS-Volume.
+echo " Copy in the saved backup of original RC file"
+<!awk '/rhel/ || /centos/ || /xen/ {print "upload ./RC-FILE.backup /etc/rc.d/rc.local.backup"} ; /sles/ {print "upload ./RC-FILE.backup /etc/init.d/after.local.backup"} ; /ubuntu/ {print "upload ./RC-FILE.backup /etc/rc.local.backup"}' ./OS-Type

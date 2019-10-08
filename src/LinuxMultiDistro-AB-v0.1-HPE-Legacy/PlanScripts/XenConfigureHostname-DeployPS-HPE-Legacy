@@ -1,0 +1,105 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Hostname configuration of XenServer as well as new UUID and certificate 
+# generation. NOTE: Not suitable for Linux distros. It contains xe commands.
+
+############
+# ############################################
+# XenConfigureHostname-DeployPS-HPE-Legacy
+# Version: 0.3
+# ############################################
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The output of the following 4 guestfish echo commands goes
+# to the OS-Volume Activity log.
+echo "======================================="
+echo "XXenConfigureHostname-DeployPS-HPE-Legacy"
+echo "======================================="
+echo "\tManual configuration of /etc/hostname"
+
+
+echo "\t Populate /etc/sysconfig/network"
+upload -<<END /etc/sysconfig/network
+
+NETWORKING=yes
+HOSTNAME=@HostName@
+
+END
+
+echo "\t Populate /etc/hostname with hostname"
+upload -<<END /etc/hostname
+@HostName@
+END
+
+echo "\t Create /temp/xenserver_make_unique.sh" 
+upload -<<END /temp/xenserver_make_unique.sh
+#!/bin/bash
+#set -x
+echo "Entering xenserver_make_unique.sh"
+ 
+#add hostname to /etc/hosts
+ip_address=@ManagementNIC1.ipaddress@
+fqdn=@HostName@.@ManagementNIC1.domain@
+alias=$(echo ${fqdn%%.})
+sed -i "/::1/a\\$ip_address $fqdn $alias" /etc/hosts
+sed -i "/::1/a\\#This file has been altered by Image Streamer." /etc/hosts
+
+# Script to fix hostname and uuid after deploying Xenserver 6.2/6.5
+# Developed by several Schuberg Philis colleagues and supported by friends ;)
+
+echo "xenserver_make_unique.sh: stopping xapi.service " 
+systemctl stop xapi.service
+
+echo "xenserver_make_unique.sh: Generate new uuid for both the host and dom0"
+sed -i "/INSTALLATION_UUID/c\INSTALLATION_UUID='$(uuidgen)'" /etc/xensource-inventory
+sed -i "/CONTROL_DOMAIN_UUID/c\CONTROL_DOMAIN_UUID='$(uuidgen)'" /etc/xensource-inventory
+
+echo "xenserver_make_unique.sh: Get rid of the current state db" 
+rm -rf /var/xapi/state.db >/dev/null 2>&1
+
+echo "xenserver_make_unique: Regenerate self-signed ssl certificate"
+cert="/etc/xensource/xapi-ssl.pem"
+cert_backup="${cert}.`date -u +%Y%m%dT%TZ`"
+mv -f "${cert}" "${cert_backup}" >/dev/null 2>&1
+
+# If the following env variables are not set
+# we get an error "unable to write random state" !
+export RNDFILE="/root/.rnd"
+export HOME="/root"
+
+
+# To be investigated: With XenServer 7.6 the first invocation of generate_ssl_cert ends up 
+# with the error: "File has been created just now by someone else: cannot overwrite" !
+# The second invocation exits normally
+/opt/xensource/libexec/generate_ssl_cert "${cert}" `hostname -f`
+rm -f /etc/xensource/xapi-ssl.pem
+/opt/xensource/libexec/generate_ssl_cert "${cert}" `hostname -f`
+
+
+echo "xenserver_make_unique.sh: Starting xapi service"
+systemctl start xapi.service
+
+echo "xenserver_make_unique.sh: Remove entry in rc.local so after reboot form xe-reset-networking this script is not called again"
+sed -i '/xenserver_make_unique.sh/d' /etc/rc.d/rc.local
+
+echo "xenserver_make_unique.sh: Reset networking after UUID changes otherwise xe pif-list shows no interfaces"
+echo yes | /opt/xensource/bin/xe-reset-networking
+
+echo "Exiting xenserver_make_unique.sh"
+echo
+END
+
+
+echo "\t Tell ./RC-FILE to launch /temp/xenserver_make_unique.sh during first boot" 
+!echo "/bin/bash /temp/xenserver_make_unique.sh" >> ./RC-FILE

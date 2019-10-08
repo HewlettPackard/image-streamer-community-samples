@@ -1,0 +1,174 @@
+# Plan Script Type: general
+
+# Plan Script Description:
+# Mount the root partition of the OS-Volume depending on the OS type. Suitable 
+# for both Capture and Deploy OS Build Plans. Must be the first step of OS Build 
+# Plans. Tested with RHEL 7, CentOS 7, XenServer 7 and Ubuntu 19.04
+
+############
+# ##########################################
+# MountAndValidate-GeneralPS-HPE-Legacy
+# Version: 0.7
+# ##########################################
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+
+# NOTE: The output of guestfish commands goes to the OS-Volume
+# Activity log file ONLY if the first mount command is successful.
+# If the first mount command fails, you must check the
+# Image Streamer Activity log file to understand why
+# the first mount command failed.
+
+
+
+# The output of the following guestfish echo commands goes 
+# into the OS-Volume Activity log file.
+echo "======================================="
+echo "MountAndValidate-GeneralPS-HPE-Legacy"
+echo "======================================="
+echo "Version of the libguestfs running in the Image Streamer:"
+version
+echo
+ 
+# The following guestfish command lists the file systems
+# present in the OS-Volume. It is there mostly for
+# debug purposes.
+echo
+echo "List of file systems present in the OS-Volume:"
+list-filesystems
+echo
+
+# Redirect the output of the list-filesystems 
+# guestfish command into the Image Streamer cat command
+# which create a list-fs file with the list of file systems.
+list-filesystems | cat > ./list-fs
+
+
+# Testing File System type. XFS is not supported by libguestfs before version 12.el7_6.1.
+# The following should be rewritten and effectively against 
+# the version of libguestfs.
+!if $(grep -q -i xfs ./list-fs) ; then echo "XFS may not be supported with this version of ImageStreamer. This Plan Script may fail abruptly very shortly" ; fi
+
+# Search for the OS device. The output of the 
+# inspect-os guestfish command goes out, into a file in the 
+# Image Streamer. 
+inspect-os | cat > ./OS-Dev
+
+# For debug purposes we print the content of the ./OS-Dev
+# file. It should contain only one line. However, the version of 
+# guestfish used by OV 4.1 is buggy; on certain OS-Volumes (i.e. CentOS 7) 
+# inspect-os returns several lines. 
+echo
+echo "List of all OS-devices found by guestfish (inspect-os):" 
+!cat ./OS-Dev
+echo
+
+# NOTE: The following is a dirty fix of the buggy inspect-os 
+# returning more than one OS. Basically, we noticed that 
+# guestfish incorrectly proposes the vfat/UEFI partition 
+# as an OS. Hence we remove the vfat partition from the 
+# ./OS-Dev file:
+!if [ $(cat ./OS-Dev | wc -l) -eq 2 ] ;then VFAT_DEV=$(awk -F ":" '/vfat/ {print $1}' list-fs); awk -v vfat_dev=$VFAT_DEV '$0 != vfat_dev {print $0}' ./OS-Dev > ./OS-Dev2 ; mv ./OS-Dev2 ./OS-Dev ; fi
+
+echo "DEBUG: List of OS-Device after eventual cleanup"
+!cat ./OS-Dev
+echo
+
+# Double check that the partition present in ./OS-Dev is different from vfat.
+# This is needed because we noticed on Ubuntu 19.04 with ext4 (No LVM), the /dev/sda2
+# partition is not found as holding a valid OS filesystem. Moreover with Ubuntu 19.04/ext4/LVM, the vfat (/dev/sda1) is mounted on / :-(
+!if $(grep -q $(cat ./OS-Dev) list-fs) ; then echo 'Problem: No valid OS partition found. Found only the vFAT/UEFI partition. Is this an Ubuntu/ext4 volume?' ; fi
+
+# Preparing tests on Image Streamer 5.0 accepting the inspect-get-osinfo command
+# Image Streamer does not implement this command but that's Ok since
+# prepended the "-" sign telling guestfish not to exit on failure.
+echo "Retrieving os info" 
+<!awk '{print "-inspect-get-osinfo", $NF}' ./OS-Dev
+echo "Retrieving os distro" 
+<!awk '{print "-inspect-get-distro", $NF}' ./OS-Dev
+echo
+
+
+# Create the mount command and execute it. The !awk 
+# command is executed by the Image Streamer. It prints
+# the mount command.
+# The "<" sign tells guestfish to execute the mount command.
+echo "Mount Command:"
+
+# Print the mount command for debug purposes:
+!awk '/dev/ {print "mount", $0, "/"}' ./OS-Dev
+
+# Perform the mount command:
+<!awk '/dev/ {print "mount", $0, "/"}' ./OS-Dev
+
+
+# The output of the following guestfish command
+# goes in the OS-Volume/Golden Image Activity log file.
+echo "Create temporary directory /temp/ImageStreamer"
+-mkdir-p /temp/ImageStreamer
+
+# Retrieve the OS type.
+# The following "cat" command is executed by the guestfish shell. It sends 
+# its output to the Image Streamer "awk" command which extracts the 
+# ID property containing the OS Type. The output of the awk command
+# goes into the ./OS-Type in the Image Streamer.
+# The OS-Type is useful to distinguish Red Hat and SUSE specificity.
+# NOTE: It should be possible to use the guestfish inspect-get-distro
+# command to do the same.
+cat /etc/os-release | awk -F= '/^ID=/ {print $NF}' > ./OS-Type
+
+# Remove surrounding " signs if any (Ubuntu encloses OS-Type with quotes
+# while others don't)
+!sed -i -e '1,$s/"//g' ./OS-Type
+
+echo
+!echo -n "OS-Type: "
+!cat ./OS-Type
+echo
+
+# Pull of the ./OS-Type from the Image Streamer
+# to the temporary directory:
+echo "Copy in the OS-Type file in the OS-Volume/Golden Image"
+upload ./OS-Type /temp/OS-Type
+
+# Guestfish copy-out the OS-Volume RC file
+# to the Image Streamer so Plan Scripts (Capture and Deploy)
+# can append commands in it.
+#
+# The output of the following echo command goes
+# in the OS-Volume Activity log file.
+<!awk '/rhel/ || /centos/ || /xen/ || /ubuntu/ {print "echo Copy out rc.local"} ; /sles/ {print "echo Copy out after.local"}' ./OS-Type
+
+# Before the copy-out we touch it, just in case it does not exists. 
+# Ubuntu requires the x permission, so we chmod +x
+<!awk '/rhel/ || /centos/ || /xen/ {print "touch /etc/rc.d/rc.local"} ; /sles/ {print "touch /etc/init.d/after.local"} ; /ubuntu/ {print "touch /etc/rc.local" ; print "chmod 0755 /etc/rc.local"}' ./OS-Type
+
+# Copy out
+<!awk '/rhel/ || /centos/ || /xen/ {print "download /etc/rc.d/rc.local ./RC-FILE"} ; /sles/ {print "download /etc/init.d/after.local ./RC-FILE"} ; /ubuntu/ {print "download /etc/rc.local ./RC-FILE"}' ./OS-Type
+
+# copy-out to the Image Streamer a backup of the RC file
+echo "Copy out a backup of the RC file"
+<!awk '/rhel/ || /centos/ || /xen/ {print "download /etc/rc.d/rc.local ./RC-FILE.backup"} ; /sles/ {print "download /etc/init.d/after.local ./RC-FILE.backup"} ; /ubuntu/ {print "download /etc/rc.local ./RC-FILE.backup"}' ./OS-Type
+
+# Setup RC file to run scripts at next boot time.
+# The following echo command is executed by the Image Streamer.
+# Its output is appended to the just copied-out rc.local file.
+!echo "# The following commands have been added by the Image Streamer" >> ./RC-FILE
+
+echo "Make sure RC file begins with !#/bin/bash" 
+!sed -i '1s/#!\/bin\/bash//' ./RC-FILE
+!sed -i '1i #!/bin/bash' ./RC-FILE
+
+echo " Print out the content the RC file for debug purposes." 
+!cat ./RC-FILE
+echo
