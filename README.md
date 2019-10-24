@@ -12,10 +12,10 @@ Community involvement is encouraged. See [CONTRIBUTING.md](CONTRIBUTING.md) for 
 
 Object | Description
 -|-
-`artifact-bundles` | `.zip` artifact bundle files
-`docs` | Collateral documentation files including a description of the legacy and UEFI [paradigms](docs/ImageStreamer-LegacyAndUefiParadigms.pdf)
-`scripts` | Scripts used to maintain this project - i.e. sources extraction from `.zip` files and `Readme.md` generator
-`src` |  Artifact bundle sources; one sub-directory per artifact bundle with a Readme.md description file.
+`artifact-bundles` | Directory containing `.zip` artifact bundle files
+`docs` | Directory containng collateral documentation files including a description of the legacy and UEFI [paradigms](docs/ImageStreamer-LegacyAndUefiParadigms.pdf)
+`scripts` | Directory containing scripts used to maintain this project - i.e. sources extraction from `.zip` files and `Readme.md` generator
+`src` |  Directory containing artifact bundle sources; one sub-directory per artifact bundle with a `Readme.md` description file.
 
 ## Object naming conventions
 
