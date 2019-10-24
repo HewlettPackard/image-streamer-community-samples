@@ -26,15 +26,19 @@ Follow these instructions to create a CentOS 7 Golden Image.
 
 * Hit `CTRL-X` to exit grub and start the installation process
 
-* In the Target storage menus, if you intend to deploy using the [Legacy deployment process](docs/ImageStreamer-LegacyAndUefiParadigms.pdf), make sure you don't select `btrfs` or `xfs` for the root file system. Select `Manual partitioning`, select the formatting as you like (`LVM` or `standard partitioning`...) and click on `Generate partitions automatically`. This screen allows the modification of the File Systems on the root partitions.
+* In the `INSTALLATION DESTINATION` menu
 
-* It is not necessary to go through the Network and hostname configuration.
+  * Select the `LEFTHAND iSCSIDisk` if present. If not, click on `Add a disk...`. Select the disk with string `lefthandnetworks` in its WWID. If this disk is not present, it is very likely that the `rd.iscsi.ibft=1` kernel parameter is not present in the kernel. 
+  
+  * if you intend to deploy using the [Legacy deployment process](docs/ImageStreamer-LegacyAndUefiParadigms.pdf), make sure you don't select `btrfs` or `xfs` for the root file system. Select `Manual partitioning`, select the formatting as you like (`LVM` or `standard partitioning`...) and click on `Generate partitions automatically`. This screen allows the modification of the File Systems on the root partitions.
+
+* It is not necessary to go through the Network and hostname configuration since it will be configured during the deployment phase.
 
 * Supply root password and wait for installation to complete.
 
 * Reboot and log into the server as root.
 
-* Edit `/etc/default/grub` and modify the `GRUB_CMDLINE_LINUX` variable as the following. The `console=sttyS0,115200` parameter is optional.
+* Edit `/etc/default/grub` and modify the `GRUB_CMDLINE_LINUX` variable as the following. The `console=ttyS0,115200` parameter is optional.
 
 ```bash
 GRUB_CMDLINE_LINUX="crashkernel=auto rd.iscsi.firmware rd.iscsi.ibft=1 console=ttyS0,115200"
@@ -43,7 +47,7 @@ GRUB_CMDLINE_LINUX="crashkernel=auto rd.iscsi.firmware rd.iscsi.ibft=1 console=t
 * Re-compile grub:
 
 ```bash
-grub2-mkconfig -o /boot/efi/EFI/centos/grub.conf
+grub2-mkconfig -o /boot/efi/EFI/centos/grub.cfg
 ```
 
 * If you intend to use the [UEFI paradigm](docs/ImageStreamer-LegacyAndUefiParadigms.pdf), append the following line to `/etc/rc.d/rc.local` and add to it the execute protection in order to start the compatibility `rc-local` service at boot time.
