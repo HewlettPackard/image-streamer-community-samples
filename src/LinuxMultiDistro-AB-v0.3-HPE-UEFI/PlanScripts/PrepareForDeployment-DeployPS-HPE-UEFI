@@ -7,7 +7,7 @@
 ############
 # ##########################################
 # PrepareForDeployment-DeployPS-HPE-UEFI
-# Version: 0.51
+# Version: 0.52
 # ##########################################
 
 # (c) Copyright 2017 Hewlett Packard Enterprise Development LP
@@ -72,10 +72,10 @@ END
 # in the UEFI partition. This bash script will be executed during
 # the next reboot of the freshly deployed OS volume, providing its
 # invocation during the initial installation of the OS in an Empty OS volume. 
-
+echo "\tCreating the HPE-ImageStreamer.bash script to be launched at first reboot"
 upload -<<END /EFI/HPE/isdeploy/HPE-ImageStreamer.bash
 #!/bin/bash
-# Version: 0.1
+# Version: 0.15
 # This script was loaded by HPE Image Streamer
 
 # variable definitions
@@ -121,7 +121,7 @@ do
 
  if ${i};
  then
- ${MV} ${i} ./tmp
+ ${MV} ${i} ./tmp > /dev/null 2>&1
  else
  RC=1
  fi

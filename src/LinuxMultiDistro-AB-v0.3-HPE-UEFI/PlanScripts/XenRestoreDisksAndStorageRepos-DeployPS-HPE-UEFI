@@ -1,0 +1,190 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Restore the DvD Drives, Removable storage and Local storage repositories that 
+# may have been removed during the Golden Image creation process. Suitable for 
+# XenServer only. UEFI deployment paradigm only.
+
+############
+# ##########################################
+# XenRestoreDisksAndStorageRepos-DeployPS-HPE-Legacy
+# Version: 0.1
+# ##########################################
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+
+# The output of the following guestfish echo commands goes 
+# into the OS-Volume Activity log file.
+echo
+echo "======================================="
+echo "XenRestoreDisksAndStorageRepos-DeployPS-HPE-UEFI"
+echo "======================================="
+
+echo " Entering Xen-RestoreDisksAndStorageRepo-DeployPS-UEFI"
+echo " Create the 3-XenRestoreDisksAndStorageRepos.bash script"
+upload -<<END /EFI/HPE/isdeploy/scripts/3-XenRestoreDisksAndStorageRepos.bash
+#!/bin/bash
+
+# Version 0.41
+
+# Redirecting logs into caller’s log file
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
+ISDEPLOY=/boot/efi/EFI/HPE/isdeploy
+echo "Entering ${ISDEPLOY}/scripts/3-XenRestoreDisksAndStorageRepos.bash"
+
+# Retrieve Management Network MAC address
+Mgmt_MAC=$(cat ${ISDEPLOY}/data/Mgmt-MAC) 
+
+echo -e "\tWait for XenServer to be up before running xe commands"
+pif_uuid="" 
+let i=1
+let count=20
+while [ -z "$pif_uuid" -a $i -lt $count ] ; do
+	echo -e "\tWaiting 10 seconds for XenServer to be up and running"
+	sleep 10
+	pif_uuid=$(xe pif-list MAC=${Mgmt_MAC} 2>/dev/null | awk '/^uuid/ {print $NF}')
+ let i++
+done
+
+if [ $i -ge $count ] ; then
+ let timeout=$count*10
+ echo "XenServer and NIC $Mgmt_MAC not ready after $timeout seconds. exiting"
+ exit 4
+fi
+
+echo "Create DvD Drives repository if needed"
+dvd_uuid=""
+dvd_uuid=$(xe sr-list name-label='DvD Drives' | awk '/^uuid/ {print $NF}')
+if [ -z $dvd_uuid ] ; then 
+ echo "Creating DvD Drives"
+ xe sr-create name-label='DvD Drives' type=udev content-type=iso \
+ device-config:location=/dev/xapi/cd name-description='Physical DVD drives' \
+ || echo "Failed to create DvD drives repository"
+fi
+
+echo "Create Removable Storage repository if needed"
+rs_uuid=""
+rs_uuid=$(xe sr-list name-label='Removable storage' | awk '/^uuid/ {print $NF}')
+if [ -z $dvd_uuid ] ; then 
+ echo "Creating Removable storage repository"
+ xe sr-create name-label='Removable storage' \
+ type=udev content-type=disk device-config:location=/dev/xapi/blocks \
+ || echo "Failed to create the Removable Storage" 
+fi
+
+echo "Create Local storage repository if needed and if possible" 
+# Check wether a Local storage repo is already present. 
+ls_uuid=""
+ls_uuid=$(xe sr-list name-label='Local storage' | awk '/^uuid/ {print $NF}')
+if [ ! -z $ls_part ] ; then
+	echo "It seems that there is already a Local storage repository. No need to recover"
+	echo "exiting..."
+	exit 0
+fi
+
+# If a Local storage repository spanning several devices has been created
+# during the original configuration/deployment, associated volume groups
+# are usually corrupted.
+# In this case we exit. An automated fix will come later.
+if $(pvscan 2>/dev/null | grep -i -q 'PV unknown device'); then
+	echo "Found a corrupted LVM device(s). Exiting" 
+	exit 0
+fi
+
+
+# If a Local storage repository has been created on the iscsi
+# boot device only, we are making our best to fix it using the
+# help of the default Xen partition layout
+#
+# The basic idea is to find an unused partion and re-create a
+# LVM Local storage repository on it.
+#
+# The default XenServer7 partition layout has 5 partitions:
+#	18 GB host control domain (dom0) partition
+#	18 GB backup partition
+#	0.5 GB UEFI boot partition
+#	4 GB logs partition
+#	1 GB swap partition
+
+# Retrieve host uuid
+host_uuid=$(xe host-list | awk '/^uuid/ {print $NF}')
+
+# Identification of the boot disk
+root_part=$(lsblk -rn -e 7,1 -o NAME,SIZE,TYPE,MOUNTPOINT | awk '/part \/$/ {print $1}')
+boot_disk=$(echo $root_part | tr -d [1-9])
+# Verify this is really a disk
+if [[ $(lsblk -nr -e 7,1 | awk '/^'${boot_disk}' / {print $NF}') != "disk" ]] ; then
+	echo "Problem identifying boot disk. Exiting"
+	exit 0
+fi
+
+# Identify data disks and probe for SR
+non_boot_disks_list=$(lsblk -nr -e 7,1 | awk '/disk $/ && !/^'${boot_disk}'/ {print $1}')
+
+# Retrieve potential disk list part of an SR
+read_dom () {
+	local IFS=\>
+	read -d \< ENTITY CONTENT
+}
+
+if [ ! -z $non_boot_disks_list ] ; then
+ for d in $non_boot_disks_list ; do
+	DevList=$(xe sr-probe type=lvm device-config:device=/dev/$d | \
+	while read_dom ; do
+	 if [[ $ENTITY = "Devlist" ]] ; then
+		echo $CONTENT
+	 fi
+	done)
+	#echo "DEBUG: DevList = $DevList"
+ done
+# echo "DEBUG: DevList = $DevList"
+ 
+ # Create SR 
+ if [ ! -z $DevList ] ; then
+ xe sr-create host-uuid=$host_uuid shared=false type=lvm \
+ 	content-type=user device-config:device=${DevList} name-label="Local storage" \
+ 	|| echo "Problem during Local storage repository creation" \
+ 	|| echo "exiting..." || exit 0
+ fi
+
+ # We should be alright. Hence we can exit
+fi
+
+# If the boot disk has 6 partitions, there is a high
+# probability that this extra partition has been created during 
+# the initial configuration with a Local storage repository.
+if [[ $(lsblk -nr -e 7,1 | awk '/^'${boot_disk}'. / && / part / {print $0}' | wc -l) -eq 6 ]] ; then
+	echo "Attempting to re-create the Local storage repository destroyed during Golden Image creation"
+
+	# Logical storage repository identification: This partition is
+	# not mounted and has a size different from 18G (hopefully!)
+	# Need to find another criteria to characterize this partition!
+	ls_part=$(lsblk -rn -e 7,1 -o NAME,SIZE,TYPE,MOUNTPOINT \
+ | awk '/^'${boot_disk}'. / && /part $/ {if ($2 != "18G") print $1}')
+
+	if [ -z $ls_part ] ; then
+		echo "Problem identifying Local Storage repository partition on boot disk. Exiting"
+		exit 0
+	fi
+	# Create Local SR on boot disk
+	xe sr-create host-uuid=$host_uuid shared=false type=lvm \
+		content-type=user device-config:device=/dev/${ls_part} name-label="Local storage" \
+		|| echo "Problem during Local storage repository creation" \
+		|| echo "exiting..." || exit 0
+fi
+
+
+echo "Exiting ${ISDEPLOY}/scripts/3-XenRestoreDisksAndStorageRepos.bash" 
+exit 0
+END

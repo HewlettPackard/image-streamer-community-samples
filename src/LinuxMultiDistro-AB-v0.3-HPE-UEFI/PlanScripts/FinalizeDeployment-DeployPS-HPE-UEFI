@@ -6,7 +6,7 @@
 ############
 #################################################
 # FinalizeDeployment-DeployPS-HPE-UEFI
-# Version: 0.3
+# Version: 0.45
 #################################################
 # (c) Copyright 2017 Hewlett Packard Enterprise Development LP
 #
@@ -23,7 +23,7 @@
 # Their output goes in the OS-Volume Activity log file.
 echo
 echo "======================================="
-echo "PrepareForDeployment-DeployPS-HPE-UEFI"
+echo "FinalizeDeployment-DeployPS-HPE-UEFI"
 echo "======================================="
 echo " Program the restore of the original RC file as last line of the ImageStreamer modified RC file"
 
@@ -39,8 +39,11 @@ upload -<<END /EFI/HPE/isdeploy/scripts/ZZZ-FinalizeDeployment.bash
 # Redirect logs into the caller's log file
 exec 1> >(logger -s -t $(basename $0)) 2>&1
 
+ISDEPLOY=/boot/efi/EFI/HPE/isdeploy
+echo "Entering ${ISDEPLOY}/scripts/ZZZ-FinalizeDeployment.bash"
+
 # Determine RC-FILE
-OS_Type=$(cat /boot/efi/EFI/HPE/isdeploy/data/OS-Type)
+OS_Type=$(cat ${ISDEPLOY}/data/OS-Type)
 
 case $OS_Type in
  rhel|centos|xen*)
@@ -63,5 +66,6 @@ esac
 # Remove the wrapper launch from the RC_FILE
 sed -i -e '/^.*sh .boot.*Streamer.bash/d' $RC_FILE || exit 2
 
+echo "Exiting ${ISDEPLOY}/scripts/ZZZ-FinalizeDeployment.bash"
 exit 0
 END

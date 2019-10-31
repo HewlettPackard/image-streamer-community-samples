@@ -1,0 +1,55 @@
+Build Plan properties summary
+
+
+Name: LinuxBasicDeploment-DeployBP-HPE-UEFI
+Type: deploy
+ID  : 0a04c128-14e9-495d-bc71-df518bdb22e8
+Description: Deploys different Linux flavors with basic customization. Tested with RHEL7, CentOS7, SLES12 and 15, Ubuntu 19.04. Not suitable for XenServer.
+
+Steps:
+ 1- MountUefiPartition-GeneralPS-HPE-UEFI
+ 2- PrepareForDeployment-DeployPS-HPE-UEFI
+ 3- LinuxConfigureMultipleNICs-DeployPS-HPE-UEFI
+ 4- FinalizeDeployment-DeployPS-HPE-UEFI
+ 5- Unmount-GeneralPS-HPE-LegacyUefi
+
+Custom Attributes:
+
+  {
+    "name": "OS_Type",
+    "description": "",
+    "value": "centos",
+    "constraints": "{}",
+    "type": "string"
+  },
+  {
+    "name": "NIC4",
+    "description": "",
+    "value": null,
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\",\"vlanid\"}",
+    "type": "nic"
+  },
+  {
+    "name": "NIC1",
+    "description": "",
+    "value": null,
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\",\"vlanid\"}",
+    "type": "nic"
+  },
+  {
+    "name": "NIC2",
+    "description": "",
+    "value": null,
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\",\"vlanid\"}",
+    "type": "nic"
+  },
+  {
+    "name": "NIC3",
+    "description": "",
+    "value": null,
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\",\"vlanid\"}",
+    "type": "nic"
+  }
+
+
+

@@ -1,0 +1,95 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Hostname configuration of XenServer as well as new UUID and certificate 
+# generation. UEFI deployment paradigm. NOTE: Not suitable for Linux distros. It 
+# contains xe commands.
+
+############
+# ############################################
+# XenConfigureHostnameAndMakeUnique-DeployPS-HPE-UEFI
+# Version: 0.1
+# ############################################
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The output of the following 4 guestfish echo commands goes
+# to the OS-Volume Activity log.
+echo "======================================="
+echo "XenConfigureHostnameAndMakeUnique-DeployPS-HPE-UEFI"
+echo "======================================="
+
+echo "\t Create /EFI/HPE/isdeploy/scripts/1-XenConfigureHostnameAndMakeUnique.bash" 
+# The following script must run before any network configuration since it performs a network reset.
+
+upload -<<END /EFI/HPE/isdeploy/scripts/1-XenConfigureHostnameAndMakeUnique.bash
+#!/bin/bash
+#set -x
+
+# Redirecting logs into caller’s log file
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
+ISDEPLOY=/boot/efi/EFI/HPE/isdeploy
+
+echo "Entering ${ISDEPLOY}/scripts/1-XenConfigureHostnameAndMakeUnique.bash"
+ 
+echo -e "\tPopulate /etc/sysconfig/network and /etc/hostname"
+cat > /etc/sysconfig/network << __Network__
+NETWORKING=yes
+HOSTNAME=@HostName@
+__Network__
+
+cat > /etc/hostname << __hostname__
+@HostName@
+__hostname__
+
+echo -e "\tStopping xapi.service " 
+systemctl stop xapi.service
+
+echo -e "\tGenerate new uuid for both the host and dom0"
+sed -i "/INSTALLATION_UUID/c\INSTALLATION_UUID='$(uuidgen)'" /etc/xensource-inventory
+sed -i "/CONTROL_DOMAIN_UUID/c\CONTROL_DOMAIN_UUID='$(uuidgen)'" /etc/xensource-inventory
+
+echo -e "\tGet rid of the current state db" 
+rm -rf /var/xapi/state.db >/dev/null 2>&1
+
+echo -e "\tRegenerate self-signed ssl certificate"
+cert="/etc/xensource/xapi-ssl.pem"
+cert_backup="${cert}.`date -u +%Y%m%dT%TZ`"
+mv -f "${cert}" "${cert_backup}" >/dev/null 2>&1
+
+# If the following env variables are not set
+# we get an error "unable to write random state" !
+export RNDFILE="/root/.rnd"
+export HOME="/root"
+
+# To be investigated: With XenServer 7.6 the first invocation of generate_ssl_cert ends up 
+# with the error: "File has been created just now by someone else: cannot overwrite" !
+# The second invocation exits normally
+/opt/xensource/libexec/generate_ssl_cert "${cert}" `hostname -f`
+rm -f /etc/xensource/xapi-ssl.pem
+/opt/xensource/libexec/generate_ssl_cert "${cert}" `hostname -f`
+
+
+echo -e "\tStarting xapi service"
+systemctl start xapi.service
+
+
+echo -e "\tMove this script so after reboot the xe-reset-networking it is not called again"
+mv ${ISDEPLOY}/scripts/1-XenConfigureHostnameAndMakeUnique.bash ${ISDEPLOY}/tmp/
+
+echo -e "\tReset networking after UUID changes otherwise xe pif-list shows no interfaces"
+echo yes | /opt/xensource/bin/xe-reset-networking
+
+echo "Exiting 1-XenConfigureHostnameAndMakeUnique.bash"
+echo
+END
