@@ -1,0 +1,43 @@
+Build Plan properties summary
+
+
+Name: XenServerMinimumDeployment-DeployBP-HPE-UEFI
+Type: deploy
+ID  : 1105c615-e548-40b7-a0a7-6af408b0b7d0
+Description: Suitable for XenServer only and UEFI based Golden Images. Tested with XenServer 7.6.
+
+Steps:
+ 1- MountUefiPartition-GeneralPS-HPE-UEFI
+ 2- PrepareForDeployment-DeployPS-HPE-UEFI
+ 3- XenConfigureHostnameAndMakeUnique-DeployPS-HPE-UEFI
+ 4- XenConfigureManagementNetworkNoBond-DeployPS-HPE-UEFI
+ 5- XenRestoreDisksAndStorageRepos-DeployPS-HPE-UEFI
+ 6- FinalizeDeployment-DeployPS-HPE-UEFI
+ 7- Unmount-GeneralPS-HPE-LegacyUefi
+
+Custom Attributes:
+
+  {
+    "name": "OS_Type",
+    "description": "",
+    "value": "xenenterprise",
+    "constraints": "{\"regex\":\"\",\"helpText\":\"\"}",
+    "type": "string"
+  },
+  {
+    "name": "ManagementNIC1",
+    "description": "",
+    "value": "",
+    "constraints": "{\"ipv4static\":true,\"ipv4dhcp\":true,\"ipv4disable\":true,\"parameters\":\"dns1\",\"dns2\",\"domain\",\"gateway\",\"ipaddress\",\"mac\",\"netmask\",\"options\":null}",
+    "type": "nic"
+  },
+  {
+    "name": "HostName",
+    "description": "",
+    "value": "xenserver-fdz",
+    "constraints": "{\"regex\":\"\",\"helpText\":\"\"}",
+    "type": "string"
+  }
+
+
+

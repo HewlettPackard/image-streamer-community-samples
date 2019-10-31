@@ -1,0 +1,327 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Simple network configuration (no bonds) of pure Linux distros. Not suitable for 
+# XenServer
+
+############
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# Configure all the NICs corresponding to the Connections defined in the OneView 
+# Profile. The number of NICs to configure corresponds to the number of connected 
+# NICs defined in the Server Profile. Restrictions: With this version, it is not 
+# possible to configure less NICs than connections present in the Profile. 
+# Moreover, the NICs to configure must be in sequence. For example It is not 
+# possible to configure NIC1 and NIC3 and not NIC2. NOTE: For a maximum of 
+# flexibility, when this Plan Script is included in a Build Plan, make sure, for 
+# each NIC, you edit its Build Plan's Custom Attributes and select all the 
+# offered possibilities: "Allow static", "Allow DHCP", "Allow no network 
+# connection". NOTE: Not suitable for XenServer.
+
+# #############################################
+# LinuxConfigureMultipleNICs-DeployPS-UEFI
+# Version 0.1
+# #############################################
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# The following echo commands are performed by the guestfish shell.
+# Their output is present in the OS-Volume Activity log file.
+echo
+echo "======================================="
+echo "LinuxConfigureMultipleNICs-DeployPS-UEFI" 
+echo "======================================="
+
+# The following echo command is performed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tCreation of the NIC-configure script in the /EFI/HPE/isdeploy/tmp directory" 
+
+# Populate OS-Type using custom attribute
+#!echo "@OS_Type:centos@" > ./OS-Type
+#upload ./OS-Type /EFI/HPE/isdeploy/data/OS-Type
+
+# The following command creates a bash script in the OS-Volume.
+# This script will be called at next reboot by the RC file
+# It configures the NICs given its arguments of the command line ($1, $2...).
+
+# The output of the echo commands present in the following script goes
+# in the operating system log file. Typically /var/log/messages.
+# Use the following command to view them once the OS-Volume 
+# has been deployed and booted:
+# grep rc.local /var/log/messages
+
+upload -<<END /EFI/HPE/isdeploy/tmp/NIC-configure
+#! /bin/bash
+echo "Entering NIC-configure ..."
+
+net_mac=$1
+vlan=$2
+net_ip=$3
+net_gw=$4
+net_domain=$5
+dns1=$6
+dns2=$7
+netmask=$8
+
+mask2cidr() {
+ nbits=0
+ IFS=.
+ for dec in $1 ; do
+ case $dec in
+ 255) let nbits+=8;;
+ 254) let nbits+=7;;
+ 252) let nbits+=6;;
+ 248) let nbits+=5;;
+ 240) let nbits+=4;;
+ 224) let nbits+=3;;
+ 192) let nbits+=2;;
+ 128) let nbits+=1;;
+ 0);;
+ *) echo -e "\tError: $dec is not recognized"; exit 1
+ esac
+ done
+ echo "$nbits"
+}
+
+ISROOT="/boot/efi/EFI/HPE/isdeploy"
+
+OS_Type=$(cat ${ISROOT}/data/OS-Type)
+case $OS_Type in
+ rhel|centos)
+ 	#NET_DIR="network-scripts"
+ 	RC_FILE="rc.local" 
+ 	echo -e "\tChecking presence of NetworkManager..."
+ 	if [[ ! $(systemctl -t service --all | grep NetworkManager.service) ]] ; then
+ 		echo -e "\tNetworkManager not installed; Exiting..."
+ 		exit 2
+ 	fi
+
+ 	if [[ $(systemctl start NetworkManager.service) ]] ; then
+ 		echo -e “\tCould not start NetworkManager. Exiting...”
+ 		exit 3
+ 	fi
+ 	;;
+ sles)
+ 	#NET_DIR="network"
+ 	RC_FILE="after.local" 
+ 	;;
+ ubuntu)
+ 	#NET_DIR="TBD"
+ 	RC_FILE="rc.local"
+ 	echo "Ubuntu: TBD"
+ 	;;
+ *)
+ 	echo "OS Type not supported. Exiting. "
+ 	exit 1
+ 	;;
+esac
+
+echo -e "\tCheck the matching interface name for $net_mac."
+interfaces=$(ls /sys/class/net/)
+#echo "Found the following NICs: $interfaces"
+#echo $interfaces
+
+for iface in $interfaces
+do
+	mac=`cat /sys/class/net/$iface/address`
+	if [ ${mac,,} == ${net_mac,,} ]
+	then
+		interface_name=$iface
+		echo $interface_name >> ${ISROOT}/interface_names
+	fi
+done
+
+# Print the list of found interface names for debug purposes.
+echo "cat ${ISROOT}/interface_names"
+cat ${ISROOT}/interface_names
+
+# If no IP address supplied, configure NIC with DHCP.
+# Remember that $net_ip is the third arg ($3).
+
+case $OS_Type in
+ rhel|centos)
+	echo -e "\tCheck if NetworkManager is still running; Who knows...."
+	if [[ $(systemctl --quiet is-failed NetworkManager.service) ]] ; then
+		echo -e “\tNetworkManager not running. Exiting”
+		exit 4
+	fi
+	echo -e "\tNetworkManager up and running."
+	if [[ -z $net_ip ]] ; then
+		if [ $vlan -ne 0 ] ; then
+			echo "Configure $interface_name for DHCP"
+			nmcli connection add type vlan con-name $interface_name$vlan ifname $interface_name.$vlan id $vlan dev $interface_name
+		else
+			nmcli connection add con-name $interface_name ifname $interface_name type ethernet autoconnect yes
+		fi
+	else
+		echo "Configure $interface_name for static."
+
+		if [ $vlan -ne 0 ] ; then
+			nmcli connection add type vlan con-name $interface_name$vlan ifname $interface_name.$vlan id $vlan dev $interface_name ip4 $net_ip/$(mask2cidr $netmask) gw4 $net_gw
+		else
+			nmcli con add con-name $interface_name ifname $interface_name type ethernet autoconnect yes ip4 $net_ip/$(mask2cidr $netmask) gw4 $net_gw
+		fi
+
+cat <<CONF>/etc/resolv.conf
+# Generated by Image Streamer
+search $net_domain
+nameserver $dns1
+nameserver $dns2
+CONF
+	fi
+ ;;
+sles)
+	if [[ -z $net_ip ]] ; then
+		echo "Configure $interface_name for DHCP"
+cat <<CONF > /etc/sysconfig/network/ifcfg-$interface_name
+#This file has been created by Image Streamer.
+NAME="$interface_name"
+DEVICE="$interface_name"
+BOOTPROTO="dhcp"
+STARTMODE=auto
+CONF
+
+	else
+
+		echo "Configure $interface_name for static."
+cat <<CONF>/etc/sysconfig/network/ifcfg-$interface_name
+#This file has been created by Image Streamer.
+NAME="$interface_name"
+DEVICE="$interface_name"
+BOOTPROTO="static"
+STARTMODE=auto
+IPADDR="$net_ip"
+NETMASK="$netmask"
+CONF
+
+cat <<CONF>/etc/resolv.conf
+#This file has been modified by Image Streamer.
+search $net_domain
+nameserver $dns1
+nameserver $dns2
+CONF
+
+cat <<CONF>/etc/sysconfig/network/routes
+#This file has been modified by Image Streamer.
+default $gateway - -
+CONF
+
+	fi
+	;;
+ubuntu)
+ echo "Configuring Ubuntu network: TBD"
+ ;;
+*)
+ 	echo "OS Type $OS_Type not supported. Exiting"
+ 	exit 1
+ ;;
+esac
+
+echo "Exiting NIC-configure."
+exit 0
+END
+
+
+# The following 2 echo commands are executed by the guestfish shell.
+# Their output goes in the OS-Volume Activity log.
+echo "\tPrepare the script that will populate the RC-FILE with the NICs configuration commands."
+echo "\tThe number of NICs to configure is automatically calculated using the Network Custom Attributes of this Plan Script ."
+# TODO: Offer the possibility to configure less NICs than present in the profile.
+
+# The following command creates a bash script in the OS-Volume. 
+# This script will be copied-out to the Image Streamer and executed there.
+# Its goal is to generate all the necessary entries in the RC-FILE for each NIC 
+# that has to be configured.
+# NOTE: The Custom Attributes are expanded during the creation of the script.
+echo "\tCreation of the NetworkConfigure script in the /EFI/HPE/isdeploy/scripts directory" 
+upload -<<END /EFI/HPE/isdeploy/scripts/NetworkConfiguration
+#! /bin/bash
+
+ISROOT="/boot/efi/EFI/HPE/isdeploy"
+
+# Retrieve OS-Type and set OS_Type dependent variables.
+OS_Type=$(cat ${ISROOT}/data/OS-Type)
+
+case $OS_Type in
+ rhel|centos|ubuntu)
+ 	NET_DIR="network-scripts"
+ 	RC_FILE="rc.local" 
+ 	;;
+ sles)
+ 	NET_DIR="network"
+ 	RC_FILE="after.local" 
+ 	;;
+ ubuntu)
+ 	echo " Ubuntu network configuration: TBD"
+ 	RC_FILE="rc.local" 
+ 	NET_DIR="TBD" 
+ 	;;
+ *)
+ 	echo " OS Type: $OS_Type not supported yet. Exiting. "
+ 	exit 2
+ 	;;
+esac
+
+
+# Compute the number of Ethernet NICs to configure.
+# Limitation: This simple compute method exits when the first "not connected" NIC
+# is found. Hence, if subsequent NICs are connected, they will not be
+# configured. 
+let n=0
+for NIC in @NIC1.mac@ @NIC2.mac@ @NIC3.mac@ @NIC4.mac@ ; do
+ if [ "$NIC" == "none" ]; then
+ 	break
+ fi
+ let n++
+ NICs_count=$n
+ echo -e "\tNumber of NICs to configure: $NICs_count"
+done
+
+if [ $NICs_count -eq 0 ]; then
+ echo -e "\tNo NIC to configure. Strange! Exiting."
+ #echo "rm -f ${ISROOT}/NIC-configure" >> ./RC-FILE
+ exit 0
+fi
+
+for i in `seq 1 $NICs_count`
+do
+	if [ $i -eq 1 ];then
+		if [[ "@NIC1.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC1.mac@ @NIC1.vlanid@ @NIC1.ipaddress@ @NIC1.gateway@ @NIC1.domain@ @NIC1.dns1@ @NIC1.dns2@ @NIC1.netmask@
+		else
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC1.mac@ @NIC1.vlanid@
+		fi
+	elif [ $i -eq 2 ];then
+		if [[ "@NIC2.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC2.mac@ @NIC2.vlanid@ @NIC2.ipaddress@ @NIC2.gateway@ @NIC2.domain@ @NIC2.dns1@ @NIC2.dns2@ @NIC2.netmask@
+		else
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC2.mac@ @NIC2.vlanid@
+		fi
+	elif [ $i -eq 3 ];then
+		if [[ "@NIC3.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC3.mac@ @NIC3.vlanid@ @NIC3.ipaddress@ @NIC3.gateway@ @NIC3.domain@ @NIC3.dns1@ @NIC3.dns2@ @NIC3.netmask@
+		else
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC3.mac@ @NIC3.vlanid@
+		fi
+	elif [ $i -eq 4 ];then
+		if [[ "@NIC4.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC4.mac@ @NIC4.vlanid@ @NIC4.ipaddress@ @NIC4.gateway@ @NIC4.domain@ @NIC4.dns1@ @NIC4.dns2@ @NIC4.netmask@
+		else
+			/bin/bash ${ISROOT}/tmp/NIC-configure @NIC4.mac@ @NIC4.vlanid@
+		fi
+	fi
+done
+
+# ToDo: adapt the following to the different Linux flavors (Ubuntu?)
+systemctl restart network 
+exit 0
+END

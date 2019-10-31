@@ -1,0 +1,198 @@
+# Plan Script Type: deploy
+
+# Plan Script Description:
+# XenServer simple management network configuration. No bond. UEFI deployment 
+# paradigm. Not suitable for Linux deployment since it uses xe commands
+
+############
+# ##########################################
+# XenConfigureManagementNetworkNoBond-DeployPS-HPE-UEFI
+# Version: 0.1
+# ##########################################
+
+
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+# NOTE: The output of guestfish commands goes to the OS-Volume
+# Activity log file ONLY if the first mount command is successful.
+# If the first mount command fails, you must check the
+# Image Streamer Activity log file to understand why
+# the first mount command failed.
+
+
+# The output of the following guestfish echo commands goes 
+# into the OS-Volume Activity log file.
+echo "================================================="
+echo "XenConfigureManagementNetworkNoBond-DeployPS-HPE-UEFI"
+echo "================================================="
+echo
+
+echo "\tCreating the /EFI/HPE/isdeploy/scripts/2-XenConfigureManagementNetworkNoBond.bash script in the OS-Volume" 
+upload -<<END /EFI/HPE/isdeploy/scripts/2-XenConfigureManagementNetworkNoBond.bash
+#! /bin/bash
+
+# Redirecting logs into caller’s log file
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
+ISDEPLOY=/boot/efi/EFI/HPE/isdeploy
+echo "Entering ${ISDEPLOY}/scripts/2-XenConfigureManagementNetworkNoBond.bash script ..."
+
+timeout=200
+echo "Wait up to $timeout seconds for xapi to start"
+/opt/xensource/bin/xapi-wait-init-complete $timeout
+if [ "$?" != "0" ] ; then 
+ echo "xapi could not start after $timout seconds. Exiting"
+ exit 2
+fi
+
+
+if [[ "@ManagementNIC1.ipaddress@" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+	/bin/bash ${ISDEPLOY}/tmp/XenNetwork.bash @ManagementNIC1.ipaddress@ @ManagementNIC1.gateway@ @ManagementNIC1.domain@ @ManagementNIC1.dns1@ @ManagementNIC1.dns2@ @ManagementNIC1.netmask@ @ManagementNIC1.mac@
+ if [ "$?" != "0" ] ; then 
+ echo "Problem in XenNetwork.bash. Exiting"
+ exit 2
+ fi 
+else
+	/bin/bash ${ISDEPLOY}/tmp/XenNetwork.bash 0 0 0 0 0 0 @ManagementNIC1.mac@
+ if [ "$?" != "0" ] ; then 
+ echo "Problem in XenNetwork.bash. Exiting"
+ exit 1
+ fi 
+fi
+
+
+#add hostname to /etc/hosts
+# First, we need to retrieve the IPv4 address in case of DHCP.
+ip_address=@ManagementNIC1.ipaddress@
+if [[ $ip_address =~ \@ ]] ; then
+ Mgmt_MAC=@ManagementNIC1.mac@
+ interfaces=$(ls /sys/class/net/)
+ for iface in $interfaces ; do
+ mac=$(cat /sys/class/net/$iface/address)
+ if [ ${mac,,} == ${Mgmt_MAC,,} ] ; then
+ ip=$(ip -4 address list $iface | awk '/ inet/ {print $2}')
+ if [ ! -z $ip ] ; then 
+ ip_address=${ip%/*}
+ fi
+ fi
+ done
+fi
+
+dnsdomain=".@ManagementNIC1.domain@"
+if [[ "$dnsdomain" =~ \.@ ]] ; then
+ echo "Could not find domain name. It is very likely that we are in DHCP mode and"
+ echo "the DHCP server did not provide the domain name."
+ echo "Defaulting to the null string to avoid corrupting /etc/hosts"
+ dnsdomain="" 
+fi
+
+fqdn=@HostName@${dnsdomain}
+alias=$(echo ${fqdn%%.*})
+if [ $fqdn == $alias ] ; then fqdn="" ; fi
+sed -i "/::1/a\\$ip_address $fqdn $alias" /etc/hosts
+sed -i "/::1/a\\#This file has been altered by Image Streamer." /etc/hosts
+
+	
+echo "Exiting ${ISDEPLOY}/scripts/2-XenConfigureManagementNetworkNoBond.bash script ..."
+exit 0
+END
+
+
+# The following echo command is performed by the guestfish shell.
+# Its output is present in the OS-Volume Activity log file.
+echo "\tPrepare a XenNetwork configuration file to be executed at next reboot" 
+
+# The following upload command creates a bash script in the OS-Volume.
+# This script will be called at next reboot by the RC file
+# It configures the NICs given its arguments of the command line ($1, $2...).
+upload -<<END /EFI/HPE/isdeploy/tmp/XenNetwork.bash
+#! /bin/bash
+
+# Redirect logs into caller's log file
+exec 1> >(logger -s -t $(basename $0)) 2>&1
+
+ISDEPLOY=/boot/efi/EFI/HPE/isdeploy
+echo -e "\tEntering ${ISDEPLOY}/tmp/XenNetwork.bash script ..."
+
+
+# Use of Xensever xe commands to configure network and network bonds for management network
+# NOTE: Xenserver does not allow the management interface to have a VLAN tag. 
+net_ip=$1
+net_gw=$2
+net_domain=$3
+dns1=$4
+dns2=$5
+netmask=$6
+net_mac_1=$7
+
+if [ ${net_mac_1,,} == "none" ] ; then
+ echo 'Management Network Interface MAC address should not be "none"'
+ echo "Make sure the Management NIC is properly configured in the profile."
+ echo "Exiting"
+ exit 1
+fi
+
+echo $net_mac_1 > ${ISDEPLOY}/data/Mgmt-MAC
+
+echo -e "\tWait for XenServer to be up before running xe commands"
+pif_uuid="" 
+let i=1
+let count=20
+while [ -z "$pif_uuid" -a $i -lt $count ] ; do
+	echo -e "\tWaiting 10 seconds for XenServer to be up and running"
+	pif_uuid=$(xe pif-list MAC=${net_mac_1} 2>/dev/null | awk '/^uuid/ {print $NF}')
+ sleep 10
+ let i++
+done
+
+if [ $i -ge $count ] ; then
+ let timeout=$count*10
+ echo "XenServer and NIC $Mgmt_MAC not ready after $timeout seconds. exiting"
+ exit 4
+fi
+
+
+if [[ "$net_ip" =~ [0-9]*\.[0-9]*\.[0-9]*\.[0-9]* ]]; then
+	echo -e "\tStatic network configuration" 
+	xe pif-reconfigure-ip uuid=$pif_uuid mode=static dns=$dns1,$dns2 ip=$net_ip gateway=$net_gw netmask=$netmask 
+ if [ "$?" != "0" ] ; then 
+ echo "Could not configure Mgmt Network interface with static address. Exiting"
+ exit 1
+ fi 
+else
+	echo -e "\tDHCP network configuration"
+	xe pif-reconfigure-ip uuid=$pif_uuid mode=dhcp
+ if [ "$?" != "0" ] ; then 
+ echo "Could not configure Mgmt Network with DHCP. Exiting"
+ exit 1
+ fi 
+fi
+
+echo -e "\tDomain configuration"
+xe pif-param-set uuid=$pif_uuid other-config:domain=$net_domain
+if [ "$?" != "0" ] ; then 
+ echo "Could not configure the Domain. Exiting"
+ exit 1
+fi
+echo -e "\tHost Management reconfiguration"
+xe host-management-reconfigure pif-uuid=$pif_uuid
+if [ "$?" != "0" ] ; then 
+ echo "Could not configure Host Management. Exiting"
+ exit 1
+fi
+
+echo -e "\tExiting ${ISDEPLOY}/tmp/XenNetwork.bash script ..."
+exit 0
+END
+
+
+echo
