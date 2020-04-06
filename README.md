@@ -16,6 +16,7 @@ Object | Description
 `docs` | Directory containng collateral documentation files including a description of the legacy and UEFI [paradigms](docs/ImageStreamer-LegacyAndUefiParadigms.pdf)
 `scripts` | Directory containing scripts used to maintain this project - i.e. sources extraction from `.zip` files and `Readme.md` generator
 `src` |  Directory containing artifact bundle sources; one sub-directory per artifact bundle with a `Readme.md` description file.
+`ArtifactBundleViewer` | Directory containing the Artifict Bundle Viewer tool for multiple Operating Systems.
 
 ## Object naming conventions
 
