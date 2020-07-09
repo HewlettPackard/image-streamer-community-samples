@@ -1,0 +1,137 @@
+<div class="artifact-bundle-view" style="display: flex; height: auto;">
+  <div class="sidebar" style="flex: 0 0; display: inline-flex;  overflow: visible;">
+    <mat-accordion class="bundle-content-list" style="margin-bottom: 10px; width: 350px;">
+      <mat-expansion-panel [disabled]="artifactBundle.planScripts.length == 0">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            Plan Scripts
+          </mat-panel-title>
+          <mat-panel-description>
+            <span class="artifact-list-count"> 
+              {{ artifactBundle.planScripts.length }}
+              </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-list dense>
+          <mat-list-item class="artifact-list-item" *ngFor="let ps of artifactBundle.planScripts" (click)="openArtifact('plan-script', ps.name)"
+            [title]="ps.name">
+            <mat-icon class="open-indicator" matListIcon *ngIf="ps.open">brightness_1</mat-icon>
+            {{ ps.name }}
+          </mat-list-item>
+        </mat-list>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [disabled]="artifactBundle.buildPlans.length == 0">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            OS Build Plans
+          </mat-panel-title>
+          <mat-panel-description>
+            <span class="artifact-list-count"> 
+                  {{ artifactBundle.buildPlans.length }}
+            </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-list dense>
+          <mat-list-item class="artifact-list-item" *ngFor="let bp of artifactBundle.buildPlans" (click)="openArtifact('build-plan', bp.name)"
+            [title]="bp.name">
+            <mat-icon class="open-indicator" matListIcon *ngIf="bp.open">brightness_1</mat-icon>
+            {{ bp.name }}
+          </mat-list-item>
+        </mat-list>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [disabled]="artifactBundle.deploymentPlans.length == 0">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            Deployment Plans
+          </mat-panel-title>
+          <mat-panel-description>
+            <span class="artifact-list-count"> 
+                    {{ artifactBundle.deploymentPlans.length }}
+                    </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-list dense>
+          <mat-list-item class="artifact-list-item" *ngFor="let dp of artifactBundle.deploymentPlans" (click)="openArtifact('deployment-plan', dp.name)"
+            [title]="dp.name">
+            <mat-icon class="open-indicator" matListIcon *ngIf="dp.open">brightness_1</mat-icon>
+            {{ dp.name }}
+          </mat-list-item>
+        </mat-list>
+      </mat-expansion-panel>
+
+      <mat-expansion-panel [disabled]="artifactBundle.goldenImages.length == 0">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            Golden Images
+          </mat-panel-title>
+          <mat-panel-description>
+            <span class="artifact-list-count"> 
+                      {{ artifactBundle.goldenImages.length }}
+          </span>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <mat-list dense>
+          <mat-list-item class="artifact-list-item" *ngFor="let gi of artifactBundle.goldenImages" (click)="openArtifact('golden-image', gi.name)"
+            [title]="gi.name">
+            <mat-icon class="open-indicator" matListIcon *ngIf="gi.open">brightness_1</mat-icon>
+            {{ gi.name }}
+          </mat-list-item>
+        </mat-list>
+      </mat-expansion-panel>
+    </mat-accordion>
+
+    <!-- <button mat-button class="bundle-info-button">Bundle Info</button> -->
+  </div>
+
+  <!-- TAB CONTENT -->
+  <div class="content" style="display: table-cell; overflow: visible">
+    <mat-card class="artifact-tabs-container" *ngIf="openTabs > 0">
+      <mat-tab-group [(selectedIndex)]="selectedIndex">
+        <mat-tab *ngFor="let ps of getOpenArtifacts(artifactBundle.planScripts)">
+          <ng-template mat-tab-label>
+            <span class="artifact-type-tab-indicator">PS</span>
+            <span [title]="ps.name">{{ ps.name }}</span>
+            <mat-icon class="close" (click)="closeArtifact('plan-script', ps.name)" title="Close plan script">cancel</mat-icon>
+          </ng-template>
+          <planscript-view [planScript]="ps"></planscript-view>
+        </mat-tab>
+
+        <mat-tab *ngFor="let bp of getOpenArtifacts(artifactBundle.buildPlans)">
+          <ng-template mat-tab-label>
+            <span class="artifact-type-tab-indicator">BP</span>
+            <span [title]="bp.name">{{ bp.name }}</span>
+            <mat-icon class="close" (click)="closeArtifact('build-plan', bp.name)" title="Close build plan">cancel</mat-icon>
+          </ng-template>
+          <build-plan-view [buildPlan]="bp" [allPlanScripts]="artifactBundle.planScripts"></build-plan-view>
+        </mat-tab>
+
+        <mat-tab *ngFor="let dp of getOpenArtifacts(artifactBundle.deploymentPlans)">
+          <ng-template mat-tab-label>
+            <span class="artifact-type-tab-indicator">DP</span>
+            <span [title]="dp.name">{{ dp.name }}</span>
+            <mat-icon class="close" (click)="closeArtifact('deployment-plan', dp.name)" title="Close deployment plan">cancel</mat-icon>
+          </ng-template>
+          <deployment-plan-view (openArtifact)="openArtifactFromChild($event)" [deploymentPlan]="dp"></deployment-plan-view>
+        </mat-tab>
+
+        <mat-tab *ngFor="let gi of getOpenArtifacts(artifactBundle.goldenImages)">
+          <ng-template mat-tab-label>
+            <span class="artifact-type-tab-indicator">GI</span>
+            <span [title]="gi.name">{{ gi.name }}</span>
+            <mat-icon class="close" (click)="closeArtifact('golden-image', gi.name)" title="Close golden image">cancel</mat-icon>
+          </ng-template>
+          <golden-image-view [goldenImage]="gi"></golden-image-view>
+        </mat-tab>
+
+      </mat-tab-group>
+    </mat-card>
+
+    <mat-card *ngIf="openTabs == 0">Select artifacts on the left to view their content</mat-card>
+  </div>
+</div>

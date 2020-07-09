@@ -1,0 +1,28 @@
+<h1 mat-dialog-title>Export Artifact Bundle</h1>
+<div mat-dialog-content class="diff-options-dialog-container">
+  <div *ngIf="data.artifactBundles.size > 0">
+    <form [formGroup]="formOptions">
+
+      <!-- <h3>Artifact Bundle</h3> -->
+      <!-- Select Bundle -->
+      <mat-form-field>
+        <mat-select required formControlName="artifactBundle">
+          <mat-option *ngFor="let ab of data.artifactBundles | keyvalue" [value]="ab.value.path">{{ ab.value.name }}</mat-option>
+        </mat-select>
+        <mat-label>
+          Bundle
+        </mat-label>
+      </mat-form-field>
+
+    </form>
+  </div>
+
+  <div *ngIf="data.artifactBundles.size == 0" class="diff-options-dialog-no-bundle-open-error">
+    Open an artifact bundle to continue.
+  </div>
+</div>
+<div mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close (click)="closeDialog()">Cancel</button>
+  <!-- <button mat-raised-button color="primary" [mat-dialog-close]="diffOptions()" cdkFocusInitial>Compare</button> -->
+  <button *ngIf="data.artifactBundles.size > 0" mat-raised-button color="primary" (click)="onExport()" cdkFocusInitial>Export to YAML</button>
+</div>

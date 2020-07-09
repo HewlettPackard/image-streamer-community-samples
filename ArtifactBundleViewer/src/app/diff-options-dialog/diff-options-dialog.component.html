@@ -1,0 +1,151 @@
+<h1 mat-dialog-title>Compare Artifacts/Bundles</h1>
+<div mat-dialog-content class="diff-options-dialog-container">
+  <div *ngIf="data.artifactBundles.size > 0">
+    <form [formGroup]="formOptions">
+      <p class="diff-options-dialog-types">
+        <mat-label>Type</mat-label>
+        <mat-radio-group required formControlName="artifactType">
+          <mat-radio-button value="plan-script">Plan Scripts</mat-radio-button>
+          <mat-radio-button value="build-plan">OS Build Plans</mat-radio-button>
+          <mat-radio-button value="deployment-plan">Deployment Plans</mat-radio-button>
+          <mat-radio-button value="artifact-bundle">Artifact Bundles</mat-radio-button>
+        </mat-radio-group>
+      </p>
+
+      <h3>Artifact / Bundle 1</h3>
+      <!-- Select Bundle -->
+      <mat-form-field>
+        <mat-select required formControlName="artifactBundle1">
+          <mat-option *ngFor="let ab of data.artifactBundles | keyvalue" [value]="ab.value.path">{{ ab.value.name }}</mat-option>
+        </mat-select>
+        <mat-label>
+          Bundle
+        </mat-label>
+      </mat-form-field>
+
+      <div *ngIf="formOptions.controls.artifactBundle1.value">
+        <!-- Select Plan Script -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'plan-script'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).planScripts.length > 0">
+            <mat-select required formControlName="planScript1">
+              <mat-option *ngFor="let ps of data.artifactBundles.get(formOptions.value.artifactBundle1).planScripts" 
+                [value]="ps.name">{{ ps.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Plan Script
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).planScripts.length == 0">
+            No plan scripts in this artifact bundle
+          </div>
+        </div>
+
+        <!-- Select Build Plan -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'build-plan'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).buildPlans.length > 0">
+            <mat-select required formControlName="buildPlan1">
+              <mat-option *ngFor="let bp of data.artifactBundles.get(formOptions.value.artifactBundle1).buildPlans" 
+                [value]="bp.name">{{ bp.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Build Plan
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).buildPlans.length == 0">
+            No OS build plans in this artifact bundle
+          </div>
+        </div>
+
+        <!-- Select Deployment Plan -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'deployment-plan'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).deploymentPlans.length > 0">
+            <mat-select required formControlName="deploymentPlan1">
+              <mat-option *ngFor="let dp of data.artifactBundles.get(formOptions.value.artifactBundle1).deploymentPlans" 
+                [value]="dp.name">{{ dp.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Deployment Plan
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle1).deploymentPlans.length == 0">
+            No deployment plans in this artifact bundle
+          </div>
+        </div>
+      </div>
+
+
+      <h3>Artifact / Bundle 2</h3>
+      <mat-form-field>
+        <mat-select required formControlName="artifactBundle2">
+          <mat-option *ngFor="let ab of data.artifactBundles | keyvalue" 
+            [value]="ab.value.path">{{ ab.value.name }}</mat-option>
+        </mat-select>
+        <mat-label>
+          Bundle
+        </mat-label>        
+        <mat-error *ngIf="!validateIfSameBundle()">Select a different artifact bundle</mat-error>
+      </mat-form-field>
+
+      <div *ngIf="formOptions.controls.artifactBundle2.value">
+        <!-- Select Plan Script -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'plan-script'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).planScripts.length > 0">
+            <mat-select required formControlName="planScript2">
+              <mat-option *ngFor="let ps of data.artifactBundles.get(formOptions.value.artifactBundle2).planScripts" 
+                [value]="ps.name">{{ ps.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Plan Script
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).planScripts.length == 0">
+            No plan scripts in this artifact bundle
+          </div>
+        </div>
+
+        <!-- Select Build Plan -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'build-plan'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).buildPlans.length > 0">
+            <mat-select required formControlName="buildPlan2">
+              <mat-option *ngFor="let bp of data.artifactBundles.get(formOptions.value.artifactBundle2).buildPlans" 
+                [value]="bp.name">{{ bp.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Build Plan
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).buildPlans.length == 0">
+            No OS build plans in this artifact bundle
+          </div>
+        </div>
+
+        <!-- Select Deployment Plan -->
+        <div *ngIf="formOptions.controls.artifactType.value == 'deployment-plan'">
+          <mat-form-field *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).deploymentPlans.length > 0">
+            <mat-select required formControlName="deploymentPlan2">
+              <mat-option *ngFor="let dp of data.artifactBundles.get(formOptions.value.artifactBundle2).deploymentPlans" 
+                [value]="dp.name">{{ dp.name }}</mat-option>
+            </mat-select>
+            <mat-label>
+              Deployment Plan
+            </mat-label>
+          </mat-form-field>
+          <div class="mat-error" *ngIf="data.artifactBundles.get(formOptions.value.artifactBundle2).deploymentPlans.length == 0">
+            No deployment plans in this artifact bundle
+          </div>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+
+  <div *ngIf="data.artifactBundles.size == 0" class="diff-options-dialog-no-bundle-open-error">
+    Open one or more artifact bundles to continue.
+  </div>
+</div>
+<div mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close (click)="closeDialog()">Cancel</button>
+  <!-- <button mat-raised-button color="primary" [mat-dialog-close]="diffOptions()" cdkFocusInitial>Compare</button> -->
+  <button *ngIf="data.artifactBundles.size > 0" mat-raised-button color="primary" (click)="onCompare()" cdkFocusInitial>Compare</button>
+</div>

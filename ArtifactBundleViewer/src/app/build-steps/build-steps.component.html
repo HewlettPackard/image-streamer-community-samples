@@ -1,0 +1,23 @@
+<mat-table [dataSource]="buildSteps">
+  <!-- serialNumber Column -->
+  <ng-container matColumnDef="serialNumber" cdkColumnDef="serialNumber">
+    <mat-header-cell *matHeaderCellDef class="steps-order"> Order </mat-header-cell>
+    <mat-cell *matCellDef="let element" class="steps-order"> {{element.serialNumber}} </mat-cell>
+  </ng-container>
+
+  <!-- Name Column -->
+  <ng-container matColumnDef="planScriptName" cdkColumnDef="planScriptName">
+    <mat-header-cell *matHeaderCellDef> Name </mat-header-cell>
+    <mat-cell *matCellDef="let element"> {{element.planScriptName}} </mat-cell>
+  </ng-container>
+
+  <!-- type Column -->
+  <ng-container matColumnDef="planScriptType" cdkColumnDef="planScriptType">
+    <mat-header-cell *matHeaderCellDef> Type </mat-header-cell>
+    <mat-cell *matCellDef="let element" [innerHTML]="planScriptsType.get(element.planScriptName) | titlecase"></mat-cell>
+  </ng-container>
+
+  <mat-header-row *matHeaderRowDef="columnsToDisplay"></mat-header-row>
+  <mat-row *matRowDef="let row; columns: columnsToDisplay;"></mat-row>
+</mat-table>
+

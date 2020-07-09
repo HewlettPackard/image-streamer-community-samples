@@ -1,0 +1,64 @@
+<div class="custom-attribute-details">
+  <div>
+    <div class="artifact-info-heading"> Description </div>
+    <div class="artifact-info-value" [innerHTML]="ca.description | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.regex">
+    <div class="artifact-info-heading"> Regular expression </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.regex | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.maximum">
+    <div class="artifact-info-heading"> Maximum </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.maximum | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.minimum">
+    <div class="artifact-info-heading"> Minimum </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.minimum | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.increment">
+    <div class="artifact-info-heading"> Increment </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.increment | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.unit">
+    <div class="artifact-info-heading"> Unit </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.unit | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.maxlen">
+    <div class="artifact-info-heading"> Maximum Length </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.maxlen | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.minlen">
+    <div class="artifact-info-heading"> Minimum Length </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.minlen | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.allowedChars">
+    <div class="artifact-info-heading"> Allowed Characters </div>
+    <div class="artifact-info-value" [innerHTML]="ca.constraints.allowedChars | orNone"></div>
+  </div>
+  <div *ngIf="ca.constraints.options">
+    <div class="artifact-info-heading"> Options </div>
+    <div class="artifact-info-value">
+      <ul>
+        <li *ngFor="let option of ca.constraints.options">{{ option }}</li>
+      </ul>
+    </div>
+  </div>
+  <div *ngIf="ca.constraints.ipv4static || ca.constraints.ipv4dhcp || ca.constraints.ipv4disable">
+    <div class="artifact-info-heading"> IPv4 Configuartion </div>
+    <div class="artifact-info-value">
+      <ul>
+        <li *ngIf="ca.constraints.ipv4static">Static</li>
+        <li *ngIf="ca.constraints.ipv4dhcp">DHCP</li>
+        <li *ngIf="ca.constraints.ipv4disable">No network connection</li>
+      </ul>
+    </div>
+  </div>
+  <div *ngIf="ca.constraints.parameters">
+    <div class="artifact-info-heading"> Interface configuration parameters </div>
+    <div class="artifact-info-value">
+      <ul>
+        <li *ngFor="let param of ca.constraints.parameters">{{param}}</li>
+      </ul>
+    </div>
+  </div>
+</div>

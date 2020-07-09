@@ -1,0 +1,13 @@
+<div class="artifact-info">
+  <h2>{{ goldenImage.name }} </h2>
+  <div>
+    <div>
+      <div class="artifact-info-heading">Description</div>
+      <div class="artifact-info-value" [innerHTML]="goldenImage.description | orNone"></div>
+    </div>
+    <div>
+      <div class="artifact-info-heading">Read-only</div>
+      <div class="artifact-info-value">{{ (goldenImage.readOnly) ? 'Yes' : 'No' }}</div>
+    </div>
+  </div>
+</div>

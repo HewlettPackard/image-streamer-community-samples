@@ -1,0 +1,24 @@
+.artifact-list .heading {
+    /* background-color: #eff0f1; */
+    text-transform: uppercase;
+    font-weight: bold;
+    padding-bottom: 5px;
+}
+
+.artifact-list ul.list-group {    
+    border: 0;    
+    padding: 0;
+    /* font-size: 0.85em;*/
+}
+
+.artifact-list li.list-group-item {
+    padding: 2px 5px;
+    border: 0;    
+}
+
+.artifact-list li.list-group-item a {
+    padding: 2px 5px;
+    border: 0;    
+    color: inherit;
+    white-space: nowrap;
+}

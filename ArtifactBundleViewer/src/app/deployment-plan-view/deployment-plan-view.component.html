@@ -1,0 +1,41 @@
+<div class="artifact-info">
+  <h2>{{ deploymentPlan.name }} </h2>
+  <div>
+    <div>
+      <div class="artifact-info-heading">Description</div>
+      <div class="artifact-info-value" [innerHTML]="deploymentPlan.description | orNone"></div>
+    </div>
+    <div>
+      <div class="artifact-info-heading">Read-only</div>
+      <div class="artifact-info-value">{{ (deploymentPlan.readOnly) ? 'Yes' : 'No' }}</div>
+    </div>
+  </div>
+  <div>
+    <div class="artifact-info-heading">Golden Image</div>
+    <div class="artifact-info-value">
+      <button *ngIf="deploymentPlan.goldenImageName" mat-button class="artifact-link"
+        (click)="openArtifacts('GI')">{{deploymentPlan.goldenImageName}}
+      </button>
+      <span *ngIf="!deploymentPlan.goldenImageName" [innerHTML]=" '' | orNone"></span>
+    </div>
+  </div>
+  <div>
+    <div class="artifact-info-heading">OS Build Plan</div>
+    <div class="artifact-info-value"> 
+      <button *ngIf="deploymentPlan.buildPlanName" mat-button class="artifact-link"
+        (click)="openArtifacts('BP')">{{deploymentPlan.buildPlanName}}
+      </button>
+      <span *ngIf="!deploymentPlan.buildPlanName" [innerHTML]=" '' | orNone"></span>
+    </div>
+  </div>
+  <div>
+    <div class="artifact-info-heading">Custom Attributes</div>
+    <div class="artifact-info-value" *ngIf="deploymentPlan.customAttributes.length != 0">
+      <custom-attribute-list [caList]="deploymentPlan.customAttributes" [showVisibleEditable]="true">
+      </custom-attribute-list>
+    </div>
+    <div class="artifact-info-value none" *ngIf="deploymentPlan.customAttributes.length == 0">
+      No Custom Attributes
+    </div>
+  </div>
+</div>

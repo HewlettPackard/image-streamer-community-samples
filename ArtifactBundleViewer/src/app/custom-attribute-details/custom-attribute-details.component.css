@@ -1,0 +1,31 @@
+ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+ul li {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+.custom-attribute-details {
+  padding-left: 44px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 90%;
+}
+
+.custom-attribute-details .artifact-info-heading {
+  min-width: 150px;
+  width: 150px;
+  word-break: normal;
+  white-space: normal;
+}
+
+.custom-attribute-details .artifact-info-value {
+  flex: 1;
+  white-space: normal;
+  width: auto;
+}

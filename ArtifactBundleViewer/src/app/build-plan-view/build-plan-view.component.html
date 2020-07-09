@@ -1,0 +1,35 @@
+<div class="artifact-info">
+  <h2>{{ buildPlan.name }}</h2>
+  <div>
+    <div class="artifact-info-heading">Description</div>
+    <div class="artifact-info-value">{{ buildPlan.description }}</div>
+  </div>
+  <div>
+    <div class="artifact-info-heading">Type</div>
+    <div class="artifact-info-value">{{ buildPlan.buildPlanType | titlecase }}</div>
+  </div>
+  <div>
+    <div class="artifact-info-heading">Read-Only</div>
+    <div class="artifact-info-value">{{ buildPlan.readOnly ? 'Yes' : 'No' }}</div>
+  </div>
+
+  <div>
+    <div class="artifact-info-heading">Steps</div>
+    <div class="artifact-info-value" style="flex: 1 0" *ngIf="buildPlan.buildSteps.length > 0">
+      <build-steps [buildSteps]="buildPlan.buildSteps" [allPlanScripts]="allPlanScripts"></build-steps>
+    </div>
+    <div class="artifact-info-value none" *ngIf="buildPlan.buildSteps.length == 0">
+      No Build Steps
+    </div>
+  </div>
+
+  <div>
+    <div class="artifact-info-heading">Custom Attributes</div>
+    <div class="artifact-info-value" *ngIf="buildPlan.customAttributes.length > 0">
+      <custom-attribute-list [caList]="buildPlan.customAttributes"></custom-attribute-list>
+    </div>
+    <div class="artifact-info-value none" *ngIf="buildPlan.customAttributes.length == 0">
+      No Custom Attributes
+    </div>
+  </div>
+</div>

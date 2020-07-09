@@ -1,0 +1,24 @@
+<div class="col-3 d-inline-block artifact-list" style="height: 100%; overflow-y: scroll;">
+    <div>
+      <i class="fas fa-plus-square fa-fw"></i>
+      <div class="heading">{{ title }} </div>
+    </div>
+    <ul class="list-group">
+      <li *ngFor="let artifact of artifactList" title="{{ artifact.name }}" class="list-group-item py-0" >
+        <a href="#" (click)="openArtifact(category, artifact.name)">
+        {{ artifact.name }}</a>
+      </li>
+    </ul>
+</div>
+<!-- <div class="col-md-auto d-inline-block;" style="overflow-y: scroll;">
+    <ngb-tabset>
+        <ngb-tab *ngFor="let artifact of getOpenArtifacts(artifactList)">
+          <ng-template ngbTabTitle>
+            <i class="fas fa-times fa-fw" (click)="closeArtifact(category, artifact.name)"></i>&nbsp; {{ artifact.name }}
+          </ng-template>
+          <ng-template ngbTabContent>
+            <pre>{{ artifact.content }}</pre>
+          </ng-template>
+        </ngb-tab>
+    </ngb-tabset>        
+</div> -->

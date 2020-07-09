@@ -1,0 +1,39 @@
+<mat-toolbar color="primary" class="mat-elevation-z1">
+  <span class="title">ABSee</span>
+  <!-- <mat-form-field appearance="outline">
+    <input matInput placeholder="Search plan scripts, OS build plans, deployment plans or golden images">
+  </mat-form-field> -->
+  <button mat-button (click)="openArtifactBundle($event)" class="toolbar-link">Open</button>
+  <button mat-button (click)="showDiffOptionsDialog($event)" class="toolbar-link">Compare</button>
+  <button mat-button (click)="showExportDialog($event)" class="toolbar-link">Export</button>
+  <button mat-button (click)="showAboutDialog($event)" class="toolbar-link">About</button>
+</mat-toolbar>
+
+<div class="container">
+  <artifact-bundle-tabs 
+    style="display: flex; flex-direction: column" 
+    *ngIf="artifactBundles.size > 0" 
+    [artifactBundles]="artifactBundles"
+    [lastOpenedBundle]="lastOpenedBundle">
+  </artifact-bundle-tabs>
+  <div style="display: flex;" *ngIf="artifactBundles.size == 0">
+    <mat-card style="margin: 10px; padding: 50px; width: 100%">
+      <h1 class="mat-display-2" style="margin: 0">ABSee</h1>
+      <h2 style="margin: 0;margin-bottom: 20px">Image Streamer Artifact Bundle Viewer</h2>
+      
+
+      <h3>ABSee allows you to:</h3>
+      <ul style="padding-left: 0">
+        <ol>View contents of artifact bundles without importing them on an Image Streamer appliance</ol>
+        <ol>Open multiple artifact bundles at the same time</ol>
+        <ol>View plan scripts with syntax highlighting</ol>
+        <ol>Compare artifacts from same or different bundles</ol>
+        <ol>Compare entire artifact bundles</ol>
+        <ol>Export artifact bundles in human-readable YAML format</ol>
+        <ol>Cross-platform. Available for Windows, Mac OS and Linux</ol>
+      </ul>
+
+      <button style="margin-top: 30px" mat-raised-button color="primary" (click)="openArtifactBundle($event)">Open Artifact Bundle</button>
+    </mat-card>
+  </div>
+</div>

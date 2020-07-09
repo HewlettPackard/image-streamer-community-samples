@@ -1,0 +1,55 @@
+table {
+  width: 100%;
+}
+
+th.mat-cell:not(.icon), td.mat-cell:not(.icon) {
+  white-space: nowrap;
+  display: table-cell;
+  padding-right: 15px;
+}
+
+th.mat-cell:first-of-type,
+td.mat-cell:first-of-type {
+  width: 40px;
+  padding-left: 10px;
+  padding-right: 5px;
+}
+
+tr.custom-attribute-detail-row {
+  height: 0;
+}
+mat-icon {
+  cursor: pointer;
+}
+
+mat-icon.collapsed {
+  padding-right: 5px; 
+  transform: rotate(0deg);
+  transition: 0.3s;
+}
+
+mat-icon.expanded {
+  transform: rotate(90deg);
+  transition: 0.3s;
+}
+
+tr.custom-attribute-row:not(.example-expanded-row):hover {
+  background: #f5f5f5;
+}
+
+tr.custom-attribute-row:not(.example-expanded-row):active {
+  background: #efefef;
+}
+
+.custom-attribute-row td {
+  border-bottom-width: 0;
+}
+
+.custom-attribute-detail {
+  overflow: hidden;
+  display: flex;
+}
+
+.mat-column-value {
+  padding-left: 10px;
+}

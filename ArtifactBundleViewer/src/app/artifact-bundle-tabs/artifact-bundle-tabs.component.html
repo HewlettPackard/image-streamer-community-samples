@@ -1,0 +1,12 @@
+<mat-tab-group *ngIf="artifactBundles.size > 0" [(selectedIndex)]="selectedIndex" style="flex: 1">
+  <mat-tab *ngFor="let artifactBundle of artifactBundleList" >
+    <ng-template mat-tab-label>
+      <span class="ab-tab-title" [title]="artifactBundles.get(artifactBundle).name">{{ artifactBundles.get(artifactBundle).name }}</span>
+      <mat-icon class="close" title="Close bundle"
+          (click)="closeBundle(artifactBundle)"
+          style="flex: 0 0 auto">cancel</mat-icon>
+    </ng-template>
+    <artifact-bundle-view class="bundle-view" [artifactBundle]="artifactBundles.get(artifactBundle)" style="width: 100vw; overflow-x: hidden; "></artifact-bundle-view>
+  </mat-tab>
+</mat-tab-group>
+
