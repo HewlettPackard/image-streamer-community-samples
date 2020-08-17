@@ -1,5 +1,14 @@
 # HPE Image Streamer Community Samples
 
+## DISCLAIMER
+
+Contents in this image-streamer-community-samples repository are NOT supported by HPE and is for sharing of custom artefacts among Image Streamer user community. For HPE supported sample OS artifacts please visit the following repositories
+
+image-streamer-esxi
+image-streamer-rhel
+image-streamer-windows
+image-streamer-sles
+
 ## Description
 
 Sample artifact bundles for use with HPE Image Streamer. The overall intent is to provide a minimum number of Plan Scripts supporting a maximum of operating system flavors and versions. Plan Script and Build Plan sources are provided in text files with a meaningful name to avoid their download and extraction to see their content.
