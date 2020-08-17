@@ -2,12 +2,14 @@
 
 ## DISCLAIMER
 
-Contents in this image-streamer-community-samples repository are NOT supported by HPE and is for sharing of custom artefacts among Image Streamer user community. For HPE supported sample OS artifacts please visit the following repositories
+Contents in this image-streamer-community-samples repository are NOT supported by HPE and is for sharing of custom artefacts among Image Streamer user community. For HPE supported sample OS artifacts please visit the following repositories.   
 
-image-streamer-esxi
-image-streamer-rhel
-image-streamer-windows
-image-streamer-sles
+image-streamer-esxi https://github.com/HewlettPackard/image-streamer-esxi  
+image-streamer-rhel https://github.com/HewlettPackard/image-streamer-rhel  
+image-streamer-windows https://github.com/HewlettPackard/image-streamer-windows  
+image-streamer-sles https://github.com/HewlettPackard/image-streamer-sles  
+
+For supported Operating System versions search for the latest revision of "HPE Synergy Image Streamer Support Matrix" on https://support.hpe.com/hpesc/public/home
 
 ## Description
 
