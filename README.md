@@ -2,7 +2,7 @@
 
 ## DISCLAIMER
 
-Contents in this image-streamer-community-samples repository are NOT supported by HPE and is for sharing of custom artefacts among Image Streamer user community. For HPE supported sample OS artifacts please visit the following repositories.   
+Contents in this image-streamer-community-samples repository are NOT supported by HPE and is for sharing of custom artefacts and tools among Image Streamer user community. For HPE supported sample OS artifacts please visit the following repositories.   
 
 image-streamer-esxi https://github.com/HewlettPackard/image-streamer-esxi  
 image-streamer-rhel https://github.com/HewlettPackard/image-streamer-rhel  
