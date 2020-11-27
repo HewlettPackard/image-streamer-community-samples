@@ -1,0 +1,144 @@
+# (c) Copyright 2017 Hewlett Packard Enterprise Development LP
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at #http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES #OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
+echo "########################################"
+echo "Add host to VMware vcenter"
+echo "########################################"
+
+upload -<<END /ImageStreamer/esxi_add_to_vcenter
+#!/bin/bash
+if [ "@Add_to_vcenter:enabled@" = "enabled" ]; then
+
+cat <<"2EOF" >>local.sh
+# Image Streamer Add ESXi host to vcenter 
+
+# Creating a python script to add a host to a vcenter server
+cat <<"EOF" >>Add_host_to_vcenter.py
+
+import urllib3
+import requests
+import json
+import sys
+
+
+def Add_host_to_vcenter(HostIP, HostPassword, vcenter, vcenteruser, vcenterpassword):
+
+    # Suppress InsecureRequestWarning for REST calls
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    # CREATE SESSION
+    url = "https://" + vcenter + "/rest/com/vmware/cis/session"
+
+    try:
+        response = requests.request(
+            "POST", url, verify=False, auth=(vcenteruser, vcenterpassword))
+        print("Connected to vcenter " + vcenter)
+    except requests.exceptions.RequestException as err:
+        print("Error ! Cannot connect to the vcenter server " + vcenter)
+        raise SystemExit(err)
+
+    sessionid = (response.json())['value']
+
+    # LIST FOLDERS
+
+    url = "https://" + vcenter + "/rest/vcenter/folder"
+
+    headers = {
+        'vmware-api-session-id': sessionid
+
+    }
+
+    try:
+        response = requests.request(
+            "GET", url, headers=headers, verify=False)
+    except requests.exceptions.RequestException as err:
+        print("Error! Cannot list vcenter folders!")
+        raise SystemExit(err)
+
+    resp = (response.json())['value']
+
+    # Get HOST folder name
+    for item in resp:
+        if item['type'] == 'HOST':
+            foldername = item['folder']
+
+    # CREATE HOST
+
+    url = "https://" + vcenter + "/rest/vcenter/host"
+
+    headers = {
+        'vmware-api-session-id': sessionid,
+        'Content-Type': 'application/json'
+
+    }
+
+    payload = {
+        "spec": {
+            "folder": foldername,
+            "hostname": HostIP,
+            "password": HostPassword,
+            "thumbprint_verification": "NONE",
+            "user_name": "root"
+        }
+    }
+
+    try:
+        response = requests.post(url, headers=headers,
+                verify=False, json=payload)
+        print("Host added successfully !")
+    except requests.exceptions.RequestException as err:
+        print("Error ! Host cannot be added to " + vcenter)
+        raise SystemExit(err)
+
+
+
+if __name__ == "__main__":
+    HostIP = str(sys.argv[1])
+    HostPassword = str(sys.argv[2])
+    vcenter = str(sys.argv[3])
+    vcenteruser = str(sys.argv[4])
+    vcenterpassword = str(sys.argv[5])
+    Add_host_to_vcenter(HostIP, HostPassword, vcenter,
+                        vcenteruser, vcenterpassword)
+
+
+
+
+EOF
+
+# Setting ESXi Firewall to enable httpClient for wget
+esxcli network firewall ruleset set -e true -r httpClient
+
+# Downloading get-pip.py 
+wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+
+# Installing pip
+python3 get-pip.py
+
+# Installing requests module
+python3 -m pip install requests
+
+# Adding ESXi host to vCenter inventory
+python3 Add_host_to_vcenter.py @ManagementNIC.ipaddress@ @Password@ @vcenter@ @vcenteruser@ @vcenterpassword@
+
+# Setting ESXi Firewall to disable httpClient 
+esxcli network firewall ruleset set -e false -r httpClient
+
+2EOF
+
+fi
+
+exit 0
+END
+
+download /ImageStreamer/esxi_add_to_vcenter esxi_add_to_vcenter
+echo "Run esxi_add_to_vcenter"
+!source ./esxi_add_to_vcenter
