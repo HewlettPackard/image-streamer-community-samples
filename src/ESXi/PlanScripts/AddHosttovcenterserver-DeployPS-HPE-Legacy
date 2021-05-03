@@ -118,7 +118,10 @@ EOF
 esxcli network firewall ruleset set -e true -r httpClient
 
 # Downloading get-pip.py 
-wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+# This script does not work on Python 3.5 (default in ESXi 7.0.0) 
+# The minimum supported Python version is 3.6. Please use https://bootstrap.pypa.io/pip/3.5/get-pip.py instead.
+# wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
+wget -O get-pip.py  https://bootstrap.pypa.io/pip/3.5/get-pip.py
 
 # Installing pip
 python3 get-pip.py
