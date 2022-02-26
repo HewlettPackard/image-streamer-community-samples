@@ -35,7 +35,7 @@
     "js-yaml": "^3.13.1",
     "material-icons": "^0.3.1",
     "path": "^0.12.7",
-    "prismjs": "^1.23.0",
+    "prismjs": "^1.27.0",
     "rxjs": "~6.3.3",
     "tslib": "^1.9.0",
     "typeface-roboto": "0.0.54",
