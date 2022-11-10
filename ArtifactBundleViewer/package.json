@@ -56,7 +56,7 @@
     "@types/js-yaml": "^3.12.1",
     "@types/yaml": "^1.0.2",
     "codelyzer": "~4.5.0",
-    "electron": "^9.4.0",
+    "electron": "^18.3.7",
     "electron-reload": "^1.4.0",
     "electron-packager": "^13.1.1",
     "jasmine-core": "~2.99.1",
